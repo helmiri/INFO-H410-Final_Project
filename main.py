@@ -276,7 +276,7 @@ class MainWindow(QMainWindow):
 
     # Button for luch the AI algorithm
     def button_AI_pressed(self):
-
+        pass
 
     def reveal_map(self):
         for x in range(0, self.b_size):
