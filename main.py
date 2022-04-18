@@ -35,13 +35,6 @@ STATUS_PLAYING = 1
 STATUS_FAILED = 2
 STATUS_SUCCESS = 3
 
-STATUS_ICONS = {
-    STATUS_READY: "./images/plus.png",
-    STATUS_PLAYING: "./images/smiley.png",
-    STATUS_FAILED: "./images/cross.png",
-    STATUS_SUCCESS: "./images/smiley-lol.png",
-}
-
 
 class Pos(QWidget):
     expandable = pyqtSignal(int, int)
@@ -132,55 +125,46 @@ class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
-        self.b_size, self.n_mines = LEVELS[2]
+        self.b_size, self.n_mines = LEVELS[1]
 
         w = QWidget()
         hb = QHBoxLayout()
 
-        self.mines = QLabel()
-        self.mines.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.score = QLabel()
+        self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
 
         self.clock = QLabel()
         self.clock.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
 
-        f = self.mines.font()
-        f.setPointSize(24)
+        f = self.score.font()
+        f.setPointSize(10)
         f.setWeight(75)
-        self.mines.setFont(f)
+        self.score.setFont(f)
         self.clock.setFont(f)
 
         self._timer = QTimer()
         self._timer.timeout.connect(self.update_timer)
         self._timer.start(1000)  # 1 second timer
 
-        self.mines.setText("%03d" % self.n_mines)
+        self.score.setText(str(SCORE))
         self.clock.setText("000")
 
-        self.button = QPushButton()
-        self.button.setFixedSize(QSize(40, 40))
-        self.button.setIconSize(QSize(40, 40))
-        self.button.setIcon(QIcon("./images/smiley.png"))
-        self.button.setFlat(True)
+        self.button = QPushButton("RESTART")
 
         self.button.pressed.connect(self.button_pressed)
 
         self.button_AI = QPushButton("RUN AI")
         self.button_AI.pressed.connect(self.button_AI_pressed)
 
-        l = QLabel()
-        l.setPixmap(QPixmap.fromImage(IMG_BOMB).scaled(40,40))
-        l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        score = QLabel("Score : ")
+        time = QLabel("Time : ")
 
         hb.addWidget(self.button_AI)
-        hb.addWidget(l)
-        hb.addWidget(self.mines)
         hb.addWidget(self.button)
+        hb.addWidget(score)
+        hb.addWidget(self.score)
+        hb.addWidget(time)
         hb.addWidget(self.clock)
-
-        l = QLabel()
-        l.setPixmap(QPixmap.fromImage(IMG_CLOCK).scaled(40,40))
-        l.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        hb.addWidget(l)
 
         vb = QVBoxLayout()
         vb.addLayout(hb)
@@ -265,10 +249,15 @@ class MainWindow(QMainWindow):
 
     # Button menu for new game
     def button_pressed(self):
+        global SCORE
+        SCORE = 0
+        self.score.setText(str(SCORE))
         if self.status == STATUS_PLAYING:
             self.update_status(STATUS_FAILED)
             self.reveal_map()
-
+        elif self.status == STATUS_READY:
+            self.update_status(STATUS_FAILED)
+            self.reveal_map()
         elif self.status == STATUS_FAILED:
             self.update_status(STATUS_READY)
             SCORE = 0
@@ -276,7 +265,24 @@ class MainWindow(QMainWindow):
 
     # Button for luch the AI algorithm
     def button_AI_pressed(self):
-        pass
+        print("Let's go AI")
+        # A FAIRE
+        # Pour le moment :  passe à traver toutes les cases est click seulement si c'est une bombe
+        for x in range(0, self.b_size):
+            for y in range(0, self.b_size):
+                w = self.grid.itemAtPosition(y, x).widget()
+                if(w.is_mine):
+                    print("Aie")
+                    w.click()
+
+
+    def reset(self):
+        SCORE = 0
+        self.score.setText(str(SCORE))
+        self.update_status(STATUS_READY)
+        self.reset_map()
+        self.show()
+
 
     def reveal_map(self):
         for x in range(0, self.b_size):
@@ -300,9 +306,9 @@ class MainWindow(QMainWindow):
 
     def update_status(self, status):
         self.status = status
-        self.button.setIcon(QIcon(STATUS_ICONS[self.status]))
 
     def update_timer(self):
+        self.score.setText(str(SCORE))
         if self.status == STATUS_PLAYING:
             n_secs = int(time.time()) - self._timer_start_nsecs
             self.clock.setText("%03d" % n_secs)
@@ -317,7 +323,7 @@ if __name__ == '__main__':
     app = QApplication([])
     app.setStyle("Fusion")
 
-    QToolTip.setFont(QFont('SansSerif', 8))
+    QToolTip.setFont(QFont('SansSerif', 5))
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(53, 53, 53))
