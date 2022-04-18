@@ -93,8 +93,15 @@ class Pos(QWidget):
     def flag(self):
         self.is_flagged = True
         self.update()
-
         self.clicked.emit()
+
+    def get_value(self):
+        if(self.is_start):
+            return -1
+        elif(self.is_mine):
+            return 0
+        else:
+            return self.adjacent_n
 
     def reveal(self):
         self.is_revealed = True
@@ -267,14 +274,16 @@ class MainWindow(QMainWindow):
     def button_AI_pressed(self):
         print("Let's go AI")
         # A FAIRE
-        # Pour le moment :  passe à traver toutes les cases est click seulement si c'est une bombe
+        # Pour le moment :  parcourt horizontal et obtient val de la case
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = self.grid.itemAtPosition(y, x).widget()
+                w = self.grid.itemAtPosition(x, y).widget()
+                print(w.get_value())
+                """
                 if(w.is_mine):
                     print("Aie")
                     w.click()
-
+                """
 
     def reset(self):
         SCORE = 0
