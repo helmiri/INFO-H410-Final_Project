@@ -14,14 +14,15 @@ IMG_START = QImage("./images/rocket.png")
 IMG_CLOCK = QImage("./images/clock-select.png")
 
 NUM_COLORS = {
-    1: QColor('#f44336'),
-    2: QColor('#9C27B0'),
+    0: QColor('#4CAF50'),
+    1: QColor('#00f3ff'),
+    2: QColor('#03A9F4'),
     3: QColor('#3F51B5'),
-    4: QColor('#03A9F4'),
-    5: QColor('#00BCD4'),
-    6: QColor('#4CAF50'),
-    7: QColor('#E91E63'),
-    8: QColor('#FF9800')
+    4: QColor('#8a00d4'),
+    5: QColor('#d400ab'),
+    6: QColor('#ff0000'),
+    7: QColor('#FF9800'),
+    8: QColor('#fff600')
 }
 
 LEVELS = [
@@ -43,7 +44,7 @@ class Pos(QWidget):
 
     def __init__(self, x, y, *args, **kwargs):
         super(Pos, self).__init__(*args, **kwargs)
-        self.setFixedSize(QSize(60, 60))
+        self.setFixedSize(QSize(70, 70))
         self.x = x
         self.y = y
 
@@ -64,7 +65,7 @@ class Pos(QWidget):
             color = self.palette().color(QPalette.Background)
             outer, inner = color, color
         else:
-            outer, inner = Qt.gray, Qt.lightGray
+            outer, inner = QColor('#878787'), QColor('#202020')
 
         p.fillRect(r, QBrush(inner))
         pen = QPen(outer)
@@ -79,7 +80,7 @@ class Pos(QWidget):
             elif self.is_mine:
                 p.drawPixmap(r, QPixmap(IMG_BOMB))
 
-            elif self.adjacent_n > 0:
+            elif self.adjacent_n >= 0:
                 pen = QPen(NUM_COLORS[self.adjacent_n])
                 p.setPen(pen)
                 f = p.font()
@@ -97,9 +98,9 @@ class Pos(QWidget):
 
     def get_value(self):
         if(self.is_start):
-            return -1
+            return -2
         elif(self.is_mine):
-            return 0
+            return -1
         else:
             return self.adjacent_n
 
