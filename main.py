@@ -2,6 +2,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
+from ai import AI
+
 import random
 import time
 
@@ -36,6 +38,7 @@ STATUS_PLAYING = 1
 STATUS_FAILED = 2
 STATUS_SUCCESS = 3
 
+supersmart = AI()
 
 class Pos(QWidget):
     expandable = pyqtSignal(int, int)
@@ -44,7 +47,7 @@ class Pos(QWidget):
 
     def __init__(self, x, y, *args, **kwargs):
         super(Pos, self).__init__(*args, **kwargs)
-        self.setFixedSize(QSize(70, 70))
+        self.setFixedSize(QSize(60, 60))
         self.x = x
         self.y = y
 
@@ -134,6 +137,7 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
 
         self.b_size, self.n_mines = LEVELS[1]
+        supersmart.setboardsize(self.b_size)
 
         w = QWidget()
         hb = QHBoxLayout()
@@ -158,16 +162,19 @@ class MainWindow(QMainWindow):
         self.clock.setText("000")
 
         self.button = QPushButton("RESTART")
-
         self.button.pressed.connect(self.button_pressed)
 
-        self.button_AI = QPushButton("RUN AI")
-        self.button_AI.pressed.connect(self.button_AI_pressed)
+        self.button_AI_learn = QPushButton("LEARN AI")
+        self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
+
+        self.button_AI_play = QPushButton("PLAY AI")
+        self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
 
         score = QLabel("Score : ")
         time = QLabel("Time : ")
 
-        hb.addWidget(self.button_AI)
+        hb.addWidget(self.button_AI_learn)
+        hb.addWidget(self.button_AI_play)
         hb.addWidget(self.button)
         hb.addWidget(score)
         hb.addWidget(self.score)
@@ -271,15 +278,20 @@ class MainWindow(QMainWindow):
             SCORE = 0
             self.reset_map()
 
+
+    def button_AI_learn_pressed(self):
+        supersmart.learn() # Give uncover board as agument
+
     # Button for luch the AI algorithm
-    def button_AI_pressed(self):
+    def button_AI_play_pressed(self):
         print("Let's go AI")
-        # A FAIRE
-        # Pour le moment :  parcourt horizontal et obtient val de la case
+        x, y = supersmart.play() # Give uncover board as agument
+
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 w = self.grid.itemAtPosition(x, y).widget()
-                print(w.get_value())
+                if(w.is_revealed):
+                    print(w.get_value())
                 """
                 if(w.is_mine):
                     print("Aie")
