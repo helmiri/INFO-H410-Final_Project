@@ -1,6 +1,9 @@
 import numpy as np
 import random
 
+# Interesting link !
+#https://sdlee94.github.io/Minesweeper-AI-Reinforcement-Learning/
+
 class AI:
     def __init__(self):
         self.boardsize = 0
