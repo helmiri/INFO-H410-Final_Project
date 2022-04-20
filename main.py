@@ -135,6 +135,9 @@ class Pos(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
+        self.setWindowTitle("Minesweeper AI")
+        self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint);
+        self.setWindowIcon(QIcon("./images/bomb.png"))
 
         self.b_size, self.n_mines = LEVELS[1]
         supersmart.setboardsize(self.b_size)
