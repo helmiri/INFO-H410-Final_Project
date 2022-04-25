@@ -1,11 +1,15 @@
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
+from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
 from ai import AI
 
 import random
 import time
+import numpy as np
+
+#TODO : poetry package
 
 global SCORE
 SCORE = 0
@@ -41,6 +45,9 @@ STATUS_SUCCESS = 3
 supersmart = AI()
 
 class Pos(QWidget):
+    """
+    Class use to represent title on the Minesweeper board
+    """
     expandable = pyqtSignal(int, int)
     clicked = pyqtSignal()
     ohno = pyqtSignal()
@@ -131,8 +138,24 @@ class Pos(QWidget):
             else:
                 SCORE += 1
 
+class Worker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+
+    def run(self):
+        """Long-running task."""
+        print("Yo")
+        self.train_AI(1)
+        for i in range(5):
+            sleep(1)
+            self.progress.emit(i + 1)
+        self.finished.emit()
+
 
 class MainWindow(QMainWindow):
+    """
+    Main class use for GUI
+    """
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setWindowTitle("Minesweeper AI")
@@ -140,7 +163,6 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon("./images/bomb.png"))
 
         self.b_size, self.n_mines = LEVELS[1]
-        supersmart.setboardsize(self.b_size)
 
         w = QWidget()
         hb = QHBoxLayout()
@@ -200,6 +222,10 @@ class MainWindow(QMainWindow):
         self.reset_map()
         self.update_status(STATUS_READY)
 
+        # Initialize Agent
+        supersmart.setboardsize(self.b_size)
+        supersmart.setProba(self.b_size)
+        supersmart.setPayoffs(self.get_payoff())
         self.show()
 
     def init_map(self):
@@ -270,6 +296,7 @@ class MainWindow(QMainWindow):
         global SCORE
         SCORE = 0
         self.score.setText(str(SCORE))
+
         if self.status == STATUS_PLAYING:
             self.update_status(STATUS_FAILED)
             self.reveal_map()
@@ -280,31 +307,150 @@ class MainWindow(QMainWindow):
             self.update_status(STATUS_READY)
             SCORE = 0
             self.reset_map()
+        elif self.status == STATUS_SUCCESS:
+            self.update_status(STATUS_READY)
+            SCORE = 0
+            self.reset_map()
 
 
     def button_AI_learn_pressed(self):
-        supersmart.learn() # Give uncover board as agument
+        #TRAIN AI
+        # Make this function run as parallal
+        self.train_AI(1000)
+
+    def train_AI(self, episodes):
+        action_probabilities = None
+        global SCORE
+        avg_score = 0
+        for i in range(0, episodes):
+            #stat = self.get_status()
+            OLDSCORE = 0
+            while(self.get_status() != STATUS_FAILED):
+                #print("     Episode :", i," | Status: ", self.get_status(), "| Score", SCORE)
+                x, y = supersmart.act()
+                OLDSCORE = SCORE
+                #self.button_pressed()
+                self.update_status(self.get_status())
+                if(self.get_status() == STATUS_SUCCESS):
+                    self.AI_turn(x, y)
+                    """
+                    stimuli = 10
+                    payoffs = self.get_payoff()
+                    supersmart.updatePayoffs(payoffs)
+                    action_probabilities = supersmart.learn(stimuli, x, y)
+                    """
+                    self.update_status(STATUS_READY)
+                    SCORE = 0
+                    self.reset()
+                    #self.button_pressed()
+                    #print(action_probabilities)
+                else:
+                    stimuli = self.AI_turn(x, y)
+                    """
+                    payoffs = self.get_payoff()
+                    supersmart.updatePayoffs(payoffs)
+                    action_probabilities = supersmart.learn(stimuli, x, y)
+                    """
+
+            avg_score += OLDSCORE
+                #stat = self.get_status()
+            # If failed
+            #print("Episode :",i)
+            #stimuli = -1
+            #payoffs = self.get_payoff()
+            #stimuli = self.compute_stimuli()
+            #action_probabilities = supersmart.learn(stimuli, x, y)
+            #print(action_probabilities)
+            self.update_status(STATUS_READY)
+            SCORE = 0
+            self.reset()
+
+        print("Avg. score :", avg_score/episodes)
+        action_probabilities = supersmart.learn(stimuli, x, y)
+        print(action_probabilities)
+
+    def AI_turn(self, x, y):
+        global SCORE
+        stimuli = 0
+        w = self.grid.itemAtPosition(x, y).widget()
+        if(not w.is_revealed):
+            w.click()
+            w.reveal()
+            #time.sleep(0.5)
+            self.show()
+            #print("AI CLICK")
+            if w.is_mine: #GAMEOVER
+                w.ohno.emit()
+                stimuli = -10
+                #SCORE = 0
+                self.update_status(STATUS_FAILED)
+            else:
+                stimuli = 1
+                SCORE += 1
+                self.score.setText(str(SCORE))
+            return stimuli
+        else:
+            return -0.5 # Si mauvaise position
+
 
     # Button for luch the AI algorithm
     def button_AI_play_pressed(self):
+        global SCORE
+        avg_score = 0
+        self.update_status(STATUS_READY)
         print("Let's go AI")
-        x, y = supersmart.play() # Give uncover board as agument
+        for i in range(0, 1000):
+            OLDSCORE = 0
+            while(self.get_status() != STATUS_FAILED):
+                #print(" Status: ", self.get_status(), "| Score", SCORE)
+                x, y = supersmart.act()
+                #self.button_pressed()
+                OLDSCORE = SCORE
+                self.AI_turn(x, y)
+                #self.update_status(self.get_status())
+            #self.AI_turn(x, y)
+            #self.update_status(STATUS_READY)
+            #SCORE = 0
+            #self.reset()
+            avg_score += OLDSCORE
+            self.update_status(STATUS_READY)
+            SCORE = 0
+            self.reset()
 
+        #avg_score += 1#SCORE - OLDSCORE
+        #print(avg_score)
+        print("Avg. score : ", avg_score/1000)
+
+        """
+        if(act==0):
+            x = random.randint(0, boardsize) # assurer que x, y pas déjà uncover
+            y = random.randint(0, boardsize)
+        for x in range(0, self.b_size):
+            for y in range(0, self.b_size):
+                w = self.grid.itemAtPosition(x, y).widget()
+                if(not w.is_mine):
+                    w.click()
+                    SCORE += 1
+                    self.score.setText(str(SCORE))
+                # w.ohno.emit() # cas ou on click sur un bombe
+        """
+    def get_payoff(self):
+        payoffs = np.zeros((self.b_size,self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 w = self.grid.itemAtPosition(x, y).widget()
                 if(w.is_revealed):
-                    print(w.get_value())
-                """
-                if(w.is_mine):
-                    print("Aie")
-                    w.click()
-                """
+                    payoffs[x,y]= w.get_value() # Revoir la mannière d'attribuer les payoffs
+                else:
+                    payoffs[x,y]=0
+        #print(payoffs)
+        return payoffs
 
     def reset(self):
+        global SCORE
         SCORE = 0
         self.score.setText(str(SCORE))
-        self.update_status(STATUS_READY)
+        #self.update_status(STATUS_READY)
         self.reset_map()
         self.show()
 
@@ -332,16 +478,53 @@ class MainWindow(QMainWindow):
     def update_status(self, status):
         self.status = status
 
+    def get_status(self):
+        return self.status
+
     def update_timer(self):
         self.score.setText(str(SCORE))
         if self.status == STATUS_PLAYING:
             n_secs = int(time.time()) - self._timer_start_nsecs
             self.clock.setText("%03d" % n_secs)
 
+    """
+    def runLongTask(self):
+        # Step 2: Create a QThread object
+        self.thread = QThread()
+        # Step 3: Create a worker object
+        self.worker = Worker()
+        # Step 4: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 5: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        #self.worker.progress.connect(self.reportProgress)
+        # Step 6: Start the thread
+        self.thread.start()
+
+        # Final resets
+        #self.longRunningBtn.setEnabled(False)
+        self.thread.finished.connect(
+            lambda: print("FINI")
+        )
+        self.thread.finished.connect(
+            lambda :print("FINI2")
+            #lambda: self.stepLabel.setText("Long-Running Step: 0")
+        )
+    """
+    
+    # Emit ohno
     def game_over(self):
+        global SCORE
         print("SCORE : ", SCORE)
+        SCORE = 0
+        #print("     STATUS : ", self.get_status())
         self.reveal_map()
-        self.update_status(STATUS_FAILED)
+        #time.sleep(0.5)
+        self.update_status(STATUS_READY)
+        self.reset()
 
 
 if __name__ == '__main__':
