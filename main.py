@@ -514,7 +514,7 @@ class MainWindow(QMainWindow):
             #lambda: self.stepLabel.setText("Long-Running Step: 0")
         )
     """
-    
+
     # Emit ohno
     def game_over(self):
         global SCORE
