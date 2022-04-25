@@ -10,5 +10,13 @@ In the context of the **Techniques of artificial intelligence** (INFO-H410) cour
 `poetry run python main.py`
 
 ## Report
-
 [Click here to access the project report.](https://www.overleaf.com/2571728687wmdkdjgyndzs)
+
+## Screenshot
+<p align="center">
+  <img
+    width="500"
+    height="400"
+    src="https://raw.githubusercontent.com/jbaudru/minesweeper/main/doc/Capture.PNG?token=GHSAT0AAAAAABQ2G5U3YKORPGEIFRO6F4IGYTGTRZQ"
+  >
+</p>
