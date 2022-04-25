@@ -16,7 +16,7 @@ In the context of the **Techniques of artificial intelligence** (INFO-H410) cour
 <p align="center">
   <img
     width="500"
-    height="400"
+    height="500"
     src="https://raw.githubusercontent.com/jbaudru/minesweeper/main/doc/Capture.PNG?token=GHSAT0AAAAAABQ2G5U3YKORPGEIFRO6F4IGYTGTRZQ"
   >
 </p>
