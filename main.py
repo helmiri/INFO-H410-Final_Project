@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from ai import AI
+from tile import Tile
 from numpy import asarray
 from sklearn.datasets import make_regression
 from keras.models import Sequential
@@ -17,12 +18,21 @@ import numpy as np
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
-global SCORE, CURRENT_REVEALED, model
+global SCORE, CURRENT_REVEALED, model, LEVEL
 SCORE = 0
 CURRENT_REVEALED = []
+LEVELS = [
+    (8, 10),
+    (16, 40),
+    (24, 99)
+]
+LEVEL = LEVELS[1] # TODO : Bug for other level than 1
+
 model = Sequential()
 supersmart = AI()
-IMG_BOMB = QImage("./images/bomb.png")
+
+
+IMG_BOMB = QImage("./imagfes/bomb.png")
 IMG_FLAG = QImage("./images/flag.png")
 IMG_START = QImage("./images/rocket.png")
 IMG_CLOCK = QImage("./images/clock-select.png")
@@ -37,130 +47,10 @@ NUM_COLORS = {
     7: QColor('#FF9800'),
     8: QColor('#fff600')
 }
-LEVELS = [
-    (8, 10),
-    (16, 40),
-    (24, 99)
-]
-LEVEL = LEVELS[1] # TODO : Bug for other level than 1
 STATUS_READY = 0
 STATUS_PLAYING = 1
 STATUS_FAILED = 2
 STATUS_SUCCESS = 3
-
-#===============================================================================
-# TILE CLASS
-#===============================================================================
-"""
-Class use to represent title on the Minesweeper board
-"""
-class Pos(QWidget):
-    expandable = pyqtSignal(int, int)
-    clicked = pyqtSignal()
-    ohno = pyqtSignal()
-
-    """
-    Initialize the board, choose the size base on the LEVELS selected
-    """
-    def __init__(self, x, y, *args, **kwargs):
-        super(Pos, self).__init__(*args, **kwargs)
-        self.setFixedSize(QSize(60, 60))
-        self.x = x
-        self.y = y
-        self.boardsize = LEVEL
-    """
-    Reset the boolean flag of a tile
-    """
-    def reset(self):
-        self.is_start = False
-        self.is_mine = False
-        self.adjacent_n = 0
-        self.is_revealed = False
-        self.is_flagged = False
-        self.update()
-
-    """
-    Drawing stuff about the tile
-    """
-    def paintEvent(self, event):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
-        r = event.rect()
-        if self.is_revealed:
-            color = self.palette().color(QPalette.Background)
-            outer, inner = color, color
-        else:
-            outer, inner = QColor('#878787'), QColor('#202020')
-        p.fillRect(r, QBrush(inner))
-        pen = QPen(outer)
-        pen.setWidth(1)
-        p.setPen(pen)
-        p.drawRect(r)
-        if self.is_revealed:
-            if self.is_start:
-                p.drawPixmap(r, QPixmap(IMG_START))
-            elif self.is_mine:
-                p.drawPixmap(r, QPixmap(IMG_BOMB))
-            elif self.adjacent_n >= 0:
-                pen = QPen(NUM_COLORS[self.adjacent_n])
-                p.setPen(pen)
-                f = p.font()
-                f.setBold(True)
-                p.setFont(f)
-                p.drawText(r, Qt.AlignHCenter | Qt.AlignVCenter, str(self.adjacent_n))
-        elif self.is_flagged:
-            p.drawPixmap(r, QPixmap(IMG_FLAG))
-
-    """
-    Put a flag (=marker) on a tile to point out a mine (right click)
-    """
-    def flag(self):
-        self.is_flagged = True
-        self.update()
-        self.clicked.emit()
-
-    """
-    Return the value of the tile
-    """
-    def get_value(self):
-        if(self.is_start):
-            return -2
-        elif(self.is_mine):
-            return -1
-        else:
-            return self.adjacent_n
-    """
-    Reveal the tiles
-    """
-    def reveal(self):
-        self.is_revealed = True
-        self.update()
-
-    """
-    Manage the actions caused by a click on a tile
-    """
-    def click(self):
-        global CURRENT_REVEALED
-        if not self.is_revealed:
-            self.reveal()
-            CURRENT_REVEALED.append((self.x, self.y))
-            if self.adjacent_n == 0:
-                self.expandable.emit(self.x, self.y)
-        self.clicked.emit()
-
-    """
-    Handle the mouse action on a tile
-    """
-    def mouseReleaseEvent(self, e):
-        global SCORE, CURRENT_REVEALED
-        if (e.button() == Qt.RightButton and not self.is_revealed):
-            self.flag()
-        elif (e.button() == Qt.LeftButton):
-            self.click()
-            if self.is_mine:
-                self.ohno.emit()
-            else:
-                SCORE += 1
 
 #===============================================================================
 # GUI AND AI
@@ -170,6 +60,7 @@ Main class use for GUI and the AI managment
 """
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
+        global LEVEL
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setWindowTitle("Minesweeper AI")
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint);
@@ -242,59 +133,62 @@ class MainWindow(QMainWindow):
     Init the board and connect signal of each tile to the correct function
     """
     def init_map(self):
+        global LEVEL, CURRENT_REVEALED, SCORE
         # Add positions to the map
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = Pos(x, y)
-                self.grid.addWidget(w, y, x)
+                tile = Tile(x, y, LEVEL, CURRENT_REVEALED, SCORE)
+                self.grid.addWidget(tile, y, x)
                 # Connect signal to handle expansion.
-                w.clicked.connect(self.trigger_start)
-                w.expandable.connect(self.expand_reveal)
-                w.ohno.connect(self.game_over)
+                tile.clicked.connect(self.trigger_start)
+                tile.expandable.connect(self.expand_reveal)
+                tile.ohno.connect(self.game_over)
 
     """
     Reset all the board, choose random positions for mine and give new value to each tiles
     """
     def reset_map(self):
+        global SCORE, CURRENT_REVEALED
         # Clear all mine positions
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = self.grid.itemAtPosition(y, x).widget()
-                w.reset()
+                tile = self.grid.itemAtPosition(y, x).widget()
+                tile.reset()
+                tile.updatedata(CURRENT_REVEALED, SCORE)
 
         # Add mines to the positions
         positions = []
         while len(positions) < self.n_mines:
             x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
             if (x, y) not in positions:
-                w = self.grid.itemAtPosition(y, x).widget()
-                w.is_mine = True
+                tile = self.grid.itemAtPosition(y, x).widget()
+                tile.is_mine = True
                 positions.append((x, y))
 
         # Give number of mines surrounding a tile
         def get_adjacency_n(x, y):
             positions = self.get_surrounding(x, y)
-            n_mines = sum(1 if w.is_mine else 0 for w in positions)
+            n_mines = sum(1 if tile.is_mine else 0 for tile in positions)
             return n_mines
 
         # Add adjacencies to the positions
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = self.grid.itemAtPosition(y, x).widget()
-                w.adjacent_n = get_adjacency_n(x, y)
+                tile = self.grid.itemAtPosition(y, x).widget()
+                tile.adjacent_n = get_adjacency_n(x, y)
 
         # Place starting marker
         while True:
             x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
-            w = self.grid.itemAtPosition(y, x).widget()
+            tile = self.grid.itemAtPosition(y, x).widget()
             # We don't want to start on a mine.
             if (x, y) not in positions:
-                w = self.grid.itemAtPosition(y, x).widget()
-                w.is_start = True
+                tile = self.grid.itemAtPosition(y, x).widget()
+                tile.is_start = True
                 # Reveal all positions around this, if they are not mines either.
-                for w in self.get_surrounding(x, y):
-                    if not w.is_mine:
-                        w.click()
+                for tile in self.get_surrounding(x, y):
+                    if not tile.is_mine:
+                        tile.click()
                 break
 
     """
@@ -312,8 +206,10 @@ class MainWindow(QMainWindow):
     """
     def get_perimeter(self):
         global CURRENT_REVEALED
+        #print("current_revealed", len(CURRENT_REVEALED))
         perimeter = []
         neighbors = []
+
         for pos in CURRENT_REVEALED:
             neighb_tmp = self.get_surrounding(pos[0], pos[1])
             for elem in neighb_tmp:
@@ -329,8 +225,8 @@ class MainWindow(QMainWindow):
     def get_bombe_peri(self, peri):
         peri_bomb = []
         for pos in peri:
-            w = self.grid.itemAtPosition(pos[0], pos[1]).widget()
-            if(w.is_mine == True):
+            tile = self.grid.itemAtPosition(pos[0], pos[1]).widget()
+            if(tile.is_mine == True):
                 peri_bomb.append(1)
             else:
                 peri_bomb.append(0)
@@ -343,8 +239,8 @@ class MainWindow(QMainWindow):
         global CURRENT_REVEALED
         value_revealed = []
         for pos in CURRENT_REVEALED:
-            w = self.grid.itemAtPosition(pos[0], pos[1]).widget()
-            value_revealed.append(w.get_value())
+            tile = self.grid.itemAtPosition(pos[0], pos[1]).widget()
+            value_revealed.append(tile.get_value())
         return value_revealed
 
     """
@@ -354,9 +250,20 @@ class MainWindow(QMainWindow):
         value_mat = np.zeros((self.b_size,self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = self.grid.itemAtPosition(x, y).widget()
-                if(w.is_revealed):
-                    value_mat[x,y]= w.get_value()
+                tile = self.grid.itemAtPosition(x, y).widget()
+                value_mat[x,y]= tile.get_value()
+        return value_mat
+
+    """
+    Return the matrix of all the tile's value known on the board
+    """
+    def get_tiles_revealed_value(self):
+        value_mat = np.zeros((self.b_size,self.b_size))
+        for x in range(0, self.b_size):
+            for y in range(0, self.b_size):
+                tile = self.grid.itemAtPosition(x, y).widget()
+                if(tile.is_revealed):
+                    value_mat[x,y]= tile.get_value()
                 else:
                     value_mat[x,y]= 10
         return value_mat
@@ -368,8 +275,8 @@ class MainWindow(QMainWindow):
         mines = np.zeros((self.b_size,self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = self.grid.itemAtPosition(x, y).widget()
-                if(w.is_mine):
+                tile = self.grid.itemAtPosition(x, y).widget()
+                if(tile.is_mine):
                     mines[x,y]= 1
                 else:
                     mines[x,y]= 0
@@ -392,8 +299,8 @@ class MainWindow(QMainWindow):
     def reveal_map(self):
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = self.grid.itemAtPosition(y, x).widget()
-                w.reveal()
+                tile = self.grid.itemAtPosition(y, x).widget()
+                tile.reveal()
 
     """
     Reveal all the tile which are not mine around a position (x,y)
@@ -401,17 +308,15 @@ class MainWindow(QMainWindow):
     def expand_reveal(self, x, y):
         for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
             for yi in range(max(0, y - 1), min(y + 2, self.b_size)):
-                w = self.grid.itemAtPosition(yi, xi).widget()
-                if not w.is_mine:
-                    w.click()
+                tile = self.grid.itemAtPosition(yi, xi).widget()
+                if not tile.is_mine:
+                    tile.click()
     """
-    Start the timer in game
+    Start the timer in at the first click and update the current status
     """
     def trigger_start(self, *args):
         if self.status != STATUS_PLAYING:
-            # First click.
             self.update_status(STATUS_PLAYING)
-            # Start timer.
             self._timer_start_nsecs = int(time.time())
     """
     Update the current status of the player
@@ -510,6 +415,8 @@ class MainWindow(QMainWindow):
         n_inputs, n_outputs = Xfin.shape[1], yfin.shape[1]
         self.set_model(n_inputs, n_outputs)
         model.fit(Xfin, yfin, verbose=1, epochs=200)
+        print("Number of generated game",len(Xfin))
+        print("Number of generated solution",len(yfin))
 
 
     """
@@ -523,13 +430,16 @@ class MainWindow(QMainWindow):
         for i in range(0, nb_test_run):
             OLDSCORE = 0
             while(self.get_status() != STATUS_FAILED):
-                testX = self.get_tiles_value()
+                testX = self.get_tiles_revealed_value()
                 # Given the current board the model predict the prob of mine with yhat
                 yhat = model.predict(testX)
+                #print(yhat)
                 # Give the positions of tile around the revealed tiles
                 peri = self.get_perimeter()
+                #print(peri)
                 # Choose the best position to click given the prediction and the perimeter
                 x, y = supersmart.act(yhat, peri)
+                #print(x, y)
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
 
@@ -546,15 +456,17 @@ class MainWindow(QMainWindow):
     Make the different action of a normal turn in game like it is a human who is playing (click etc)
     """
     def AI_turn(self, x, y):
-        global SCORE
-        stimuli = 0
-        w = self.grid.itemAtPosition(x, y).widget()
-        if(not w.is_revealed):
-            w.click()
-            w.reveal()
+        global SCORE, CURRENT_REVEALED
+
+        tile = self.grid.itemAtPosition(x, y).widget()
+        tile.updatedata(CURRENT_REVEALED, SCORE)
+
+        if(not tile.is_revealed):
+            tile.click()
+            tile.reveal()
             self.show()
-            if w.is_mine: #GAMEOVER
-                w.ohno.emit()
+            if tile.is_mine: #GAMEOVER
+                tile.ohno.emit()
                 self.update_status(STATUS_FAILED)
             else:
                 SCORE += 1
