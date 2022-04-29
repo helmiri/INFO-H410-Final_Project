@@ -8,6 +8,10 @@ authors = ["Julien Baudru <julien.baudru@ulb.be>"]
 python = "^3.8"
 numpy = "^1.22.3"
 PyQt5 = "^5.15.6"
+keras = "2.3.1"
+sklearn = "^0.0"
+tensorflow = "2.2"
+tensorflow-gpu = "2.2"
 
 [tool.poetry.dev-dependencies]
 
