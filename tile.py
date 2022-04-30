@@ -41,14 +41,14 @@ class Tile(QWidget):
     """
     Initialize the board, choose the size base on the LEVELS selected
     """
-    def __init__(self, x, y, level, lst_revealed, scr, *args, **kwargs):
+    def __init__(self, x, y, level, *args, **kwargs):
         super(Tile, self).__init__(*args, **kwargs)
         self.setFixedSize(QSize(60, 60))
         self.x = x
         self.y = y
         self.boardsize = level
-        self.current_revealed = lst_revealed
-        self.score = scr
+        #self.current_revealed = lst_revealed
+        #self.score = scr
     """
     Reset the boolean flag of a tile
     """
@@ -60,12 +60,6 @@ class Tile(QWidget):
         self.is_flagged = False
         self.update()
 
-    """
-    Update the information containt in the tile
-    """
-    def updatedata(self, lst_revealed, scr):
-        self.current_revealed = lst_revealed
-        self.score = scr
 
     """
     Drawing stuff about the tile
@@ -130,7 +124,7 @@ class Tile(QWidget):
     def click(self):
         if not self.is_revealed:
             self.reveal()
-            self.current_revealed.append((self.x, self.y))
+            #self.current_revealed.append((self.x, self.y))
             if self.adjacent_n == 0:
                 self.expandable.emit(self.x, self.y)
         self.clicked.emit()
@@ -145,5 +139,6 @@ class Tile(QWidget):
             self.click()
             if self.is_mine:
                 self.ohno.emit()
-            else:
-                self.score += 1
+
+            #else:
+            #self.score += 1

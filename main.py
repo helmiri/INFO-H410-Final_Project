@@ -5,15 +5,24 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from ai import AI
 from tile import Tile
 from numpy import asarray
-from sklearn.datasets import make_regression
+
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.layers import Dropout
+from keras.layers import Reshape
+
+from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.model_selection import train_test_split
+from tensorflow import keras
+
 import random
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 
 #To add a package to the project : poetry add 'package_name'
 
+# TODO : Bug score not updated when played by hand
 
 #===============================================================================
 # GLOBAL VARIABLES
@@ -98,6 +107,9 @@ class MainWindow(QMainWindow):
         self.button_AI_play = QPushButton("PLAY AI")
         self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
 
+        self.button_AI_test = QPushButton("TEST AI")
+        self.button_AI_test.pressed.connect(self.button_AI_test_pressed)
+
         score = QLabel("Score : ")
         time = QLabel("Time : ")
 
@@ -108,6 +120,7 @@ class MainWindow(QMainWindow):
         hb.addWidget(self.score)
         hb.addWidget(time)
         hb.addWidget(self.clock)
+        hb.addWidget(self.button_AI_test)
 
         vb = QVBoxLayout()
         vb.addLayout(hb)
@@ -137,7 +150,7 @@ class MainWindow(QMainWindow):
         # Add positions to the map
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                tile = Tile(x, y, LEVEL, CURRENT_REVEALED, SCORE)
+                tile = Tile(x, y, LEVEL)
                 self.grid.addWidget(tile, y, x)
                 # Connect signal to handle expansion.
                 tile.clicked.connect(self.trigger_start)
@@ -154,7 +167,7 @@ class MainWindow(QMainWindow):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 tile.reset()
-                tile.updatedata(CURRENT_REVEALED, SCORE)
+                #tile.updatedata(CURRENT_REVEALED, SCORE)
 
         # Add mines to the positions
         positions = []
@@ -189,6 +202,8 @@ class MainWindow(QMainWindow):
                 for tile in self.get_surrounding(x, y):
                     if not tile.is_mine:
                         tile.click()
+                        if((x,y) not in CURRENT_REVEALED):
+                            CURRENT_REVEALED.append((x,y))
                 break
 
     """
@@ -205,11 +220,10 @@ class MainWindow(QMainWindow):
     Allow us to get the x,y positions of all the tiles around the set of revealed tiles
     """
     def get_perimeter(self):
-        global CURRENT_REVEALED
+        CURRENT_REVEALED = self.get_pos_of_revealed()
         #print("current_revealed", len(CURRENT_REVEALED))
         perimeter = []
         neighbors = []
-
         for pos in CURRENT_REVEALED:
             neighb_tmp = self.get_surrounding(pos[0], pos[1])
             for elem in neighb_tmp:
@@ -236,7 +250,7 @@ class MainWindow(QMainWindow):
     Give the list of the value of the revealed tiles
     """
     def get_input_from_revealed(self):
-        global CURRENT_REVEALED
+        CURRENT_REVEALED = self.get_pos_of_revealed()
         value_revealed = []
         for pos in CURRENT_REVEALED:
             tile = self.grid.itemAtPosition(pos[0], pos[1]).widget()
@@ -250,7 +264,7 @@ class MainWindow(QMainWindow):
         value_mat = np.zeros((self.b_size,self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                tile = self.grid.itemAtPosition(x, y).widget()
+                tile = self.grid.itemAtPosition(y, x).widget()
                 value_mat[x,y]= tile.get_value()
         return value_mat
 
@@ -261,12 +275,21 @@ class MainWindow(QMainWindow):
         value_mat = np.zeros((self.b_size,self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                tile = self.grid.itemAtPosition(x, y).widget()
+                tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_revealed):
                     value_mat[x,y]= tile.get_value()
                 else:
-                    value_mat[x,y]= 10
+                    value_mat[x,y]= -1
         return value_mat
+
+    def get_pos_of_revealed(self):
+        lst_revealed = []
+        for x in range(0, self.b_size):
+            for y in range(0, self.b_size):
+                tile = self.grid.itemAtPosition(y, x).widget()
+                if(tile.is_revealed):
+                    lst_revealed.append((x, y))
+        return lst_revealed
 
     """
     Return the matrix with the positions of mine, 1 if it's a mine, 0 otherwise
@@ -286,8 +309,7 @@ class MainWindow(QMainWindow):
     Reset all the global value and the board
     """
     def reset(self):
-        global SCORE, CURRENT_REVEALED
-        CURRENT_REVEALED = []
+        global SCORE
         SCORE = 0
         self.score.setText(str(SCORE))
         self.reset_map()
@@ -331,9 +353,10 @@ class MainWindow(QMainWindow):
         return self.status
 
     """
-    Update the in game timer text value
+    Update the in game timer value and the score
     """
     def update_timer(self):
+        global SCORE
         self.score.setText(str(SCORE))
         if self.status == STATUS_PLAYING:
             n_secs = int(time.time()) - self._timer_start_nsecs
@@ -347,16 +370,15 @@ class MainWindow(QMainWindow):
         print("SCORE : ", SCORE)
         SCORE = 0
         self.reveal_map()
-        self.update_status(STATUS_READY)
+        self.update_status(STATUS_FAILED)
         self.reset()
 
     """
     Code execute when the user click on the restart button
     """
     def button_pressed(self):
-        global SCORE, CURRENT_REVEALED
+        global SCORE
         SCORE = 0
-        CURRENT_REVEALED = []
         self.score.setText(str(SCORE))
 
         if self.status == STATUS_PLAYING:
@@ -367,56 +389,98 @@ class MainWindow(QMainWindow):
             self.reveal_map()
         elif self.status == STATUS_FAILED:
             self.update_status(STATUS_READY)
-            SCORE = 0
             self.reset_map()
         elif self.status == STATUS_SUCCESS:
             self.update_status(STATUS_READY)
-            SCORE = 0
             self.reset_map()
+
 
     """
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
         # TODO : Make this function run as parallal
-        self.train_AI(100)
+        self.train_AI(10000)
+
 
     """
     Define the architecture of the neuronal network
     """
-    def set_model(self, n_inputs, n_outputs):
+    def set_model(self, n_inputs, n_outputs):)
         global model
-        model.add(Dense(10, input_dim=n_inputs, kernel_initializer='he_uniform', activation='relu'))
-        #model.add(Dense(20, kernel_initializer='he_uniform', activation='relu'))
-        model.add(Dense(n_outputs, kernel_initializer='he_uniform'))
-        model.compile(loss='mean_squared_error', optimizer='adam')
+        matrixSize = n_inputs
+
+        lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=1600, decay_rate=0.95)
+        rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.3)
+
+        model = keras.models.Sequential([
+            keras.layers.Dense((matrixSize*matrixSize)/2, input_shape=(matrixSize,matrixSize), activation="relu"),
+            keras.layers.Dropout(0.2),
+            keras.layers.Flatten(),
+            keras.layers.Dense((matrixSize*matrixSize)/4, activation="relu"),
+            keras.layers.Dropout(0.2),
+            keras.layers.Dense((matrixSize*matrixSize)/2, activation="relu"),
+            keras.layers.Dropout(0.2),
+            keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
+            keras.layers.Reshape((matrixSize, matrixSize))
+        ])
+
+        model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
+        model.summary()
+
 
     """
     Steps to do in order to train the model with all the different game
     """
     def train_AI(self, episodes):
         global SCORE, model
-        action_probabilities = None
         avg_score = 0
 
         # get_tiles_value : give the value of each tile on the board
-        Xfin = np.array(self.get_tiles_value())
-        yfin = np.array(self.get_all_mine())
+        Xfin = []
+        yfin = []
 
         # Create multiple beginning of game (=episodes) and add them to the input list
         for i in range(0, episodes):
             print("Creating game #",i+1)
-            Xfin = np.vstack([Xfin, self.get_tiles_value()])
-            yfin = np.vstack([yfin, self.get_all_mine()])
+            Xfin.append(self.get_tiles_value())
+            yfin.append(self.get_all_mine())
             self.update_status(STATUS_READY)
             self.reset()
 
         # Train the model with all the game in the input list
-        n_inputs, n_outputs = Xfin.shape[1], yfin.shape[1]
-        self.set_model(n_inputs, n_outputs)
-        model.fit(Xfin, yfin, verbose=1, epochs=200)
-        print("Number of generated game",len(Xfin))
-        print("Number of generated solution",len(yfin))
+        n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
+        self.set_model(n_inputs, n_inputs)
+
+        seed = 7
+        np.random.seed(seed)
+        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
+
+        es = EarlyStopping(monitor='loss', mode='min', verbose=1,min_delta=0.01, patience=100)
+
+        print("SIZE X TRAIN", X_train.shape)
+        history = model.fit(X_train, Y_train, batch_size=100, callbacks=[es], shuffle=True, epochs=episodes, validation_split=0.1)
+
+        score = model.evaluate(X_test, Y_test, verbose=0)
+        print("Test loss:", score[0])
+        print("Test accuracy:", score[1])
+
+        plt.plot(history.history['accuracy'])
+        plt.plot(history.history['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        """
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        """
 
 
     """
@@ -426,19 +490,21 @@ class MainWindow(QMainWindow):
         global SCORE, model
         avg_score = 0
         self.update_status(STATUS_READY)
-        nb_test_run = 10
+
+        nb_test_run = 100
+
         for i in range(0, nb_test_run):
             OLDSCORE = 0
             while(self.get_status() != STATUS_FAILED):
-                testX = self.get_tiles_revealed_value()
+                testX = np.array([self.get_tiles_revealed_value()])
                 # Given the current board the model predict the prob of mine with yhat
                 yhat = model.predict(testX)
                 #print(yhat)
                 # Give the positions of tile around the revealed tiles
                 peri = self.get_perimeter()
-                #print(peri)
+                CURRENT_REVEALED = self.get_pos_of_revealed()
                 # Choose the best position to click given the prediction and the perimeter
-                x, y = supersmart.act(yhat, peri)
+                x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
                 #print(x, y)
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
@@ -456,11 +522,9 @@ class MainWindow(QMainWindow):
     Make the different action of a normal turn in game like it is a human who is playing (click etc)
     """
     def AI_turn(self, x, y):
-        global SCORE, CURRENT_REVEALED
-
-        tile = self.grid.itemAtPosition(x, y).widget()
-        tile.updatedata(CURRENT_REVEALED, SCORE)
-
+        global SCORE
+        tile = self.grid.itemAtPosition(y, x).widget()
+        #tile.updatedata(CURRENT_REVEALED, SCORE)
         if(not tile.is_revealed):
             tile.click()
             tile.reveal()
@@ -472,6 +536,26 @@ class MainWindow(QMainWindow):
                 SCORE += 1
                 self.score.setText(str(SCORE))
 
+    """
+    Simple function link to a button to test stuff about the AI
+    """
+    def button_AI_test_pressed(self):
+        global model
+        CURRENT_REVEALED = self.get_pos_of_revealed()
+        testX = np.array([self.get_tiles_revealed_value()])
+        #print("SIZE X TRAIN", testX.shape)
+        # Given the current board the model predict the prob of mine with yhat
+        yhat = model.predict(testX)
+        #print(yhat)
+        # Give the positions of tile around the revealed tiles
+        peri = self.get_perimeter()
+        #print("Peri :", peri)
+        # Choose the best position to click given the prediction and the perimeter
+        x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
+        print(x, y)
+
+        #OLDSCORE = SCORE
+        self.AI_turn(x, y)
 
 
 if __name__ == '__main__':
