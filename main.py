@@ -400,28 +400,28 @@ class MainWindow(QMainWindow):
     """
     def button_AI_learn_pressed(self):
         # TODO : Make this function run as parallal
-        self.train_AI(10000)
+        self.train_AI(1000)
 
 
     """
     Define the architecture of the neuronal network
     """
-    def set_model(self, n_inputs, n_outputs):)
+    def set_model(self, n_inputs, n_outputs):
         global model
         matrixSize = n_inputs
 
         lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=1600, decay_rate=0.95)
-        rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.3)
+        rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.1)
 
         model = keras.models.Sequential([
-            keras.layers.Dense((matrixSize*matrixSize)/2, input_shape=(matrixSize,matrixSize), activation="relu"),
+            keras.layers.Dense((matrixSize*matrixSize), input_shape=(matrixSize,matrixSize), activation="relu"),
             keras.layers.Dropout(0.2),
             keras.layers.Flatten(),
             keras.layers.Dense((matrixSize*matrixSize)/4, activation="relu"),
-            keras.layers.Dropout(0.2),
+            keras.layers.Dropout(0.1),
             keras.layers.Dense((matrixSize*matrixSize)/2, activation="relu"),
             keras.layers.Dropout(0.2),
-            keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
+            keras.layers.Dense(matrixSize*matrixSize, activation="relu"),
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
 
@@ -456,7 +456,7 @@ class MainWindow(QMainWindow):
         np.random.seed(seed)
         X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
 
-        es = EarlyStopping(monitor='loss', mode='min', verbose=1,min_delta=0.01, patience=100)
+        es = EarlyStopping(monitor='loss', mode='min', verbose=1,min_delta=0.01, patience=episodes)
 
         print("SIZE X TRAIN", X_train.shape)
         history = model.fit(X_train, Y_train, batch_size=100, callbacks=[es], shuffle=True, epochs=episodes, validation_split=0.1)
@@ -546,13 +546,13 @@ class MainWindow(QMainWindow):
         #print("SIZE X TRAIN", testX.shape)
         # Given the current board the model predict the prob of mine with yhat
         yhat = model.predict(testX)
-        #print(yhat)
+        print(yhat)
         # Give the positions of tile around the revealed tiles
         peri = self.get_perimeter()
         #print("Peri :", peri)
         # Choose the best position to click given the prediction and the perimeter
         x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
-        print(x, y)
+        #print(x, y)
 
         #OLDSCORE = SCORE
         self.AI_turn(x, y)

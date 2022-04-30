@@ -48,7 +48,7 @@ def builtDataset(datasetSize,matrixSize,maxValue):
 matrixSize = 16
 maxValue = 200
 epochs = 20
-datasetSize = 100
+datasetSize = 10000
 
 inputs,outputs = builtDataset(datasetSize,matrixSize,maxValue)
 print("inputs ",len(inputs))
