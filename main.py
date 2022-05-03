@@ -1,8 +1,11 @@
+from asyncio import sleep
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from sklearn import neighbors
 from ai import AI
+from solver import naive, rule_1, rule_2
 from tile import Tile
 from numpy import asarray
 
@@ -42,13 +45,13 @@ LEVELS = [
     (16, 40),
     (24, 99)
 ]
-LEVEL = LEVELS[1] # TODO : Bug for other level than 1
+LEVEL = LEVELS[1]
 
 model = Sequential()
 supersmart = AI()
 
 
-IMG_BOMB = QImage("./imagfes/bomb.png")
+IMG_BOMB = QImage("./images/bomb.png")
 IMG_FLAG = QImage("./images/flag.png")
 IMG_START = QImage("./images/rocket.png")
 IMG_CLOCK = QImage("./images/clock-select.png")
@@ -81,6 +84,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Minesweeper AI")
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint);
         self.setWindowIcon(QIcon("./images/bomb.png"))
+        self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
+        screen_size = QApplication.primaryScreen().availableSize()
+        self.setFixedHeight(min(LEVEL[0]*40, screen_size.height()))
+        self.setFixedWidth(min(LEVEL[0]*40, screen_size.width()))
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
@@ -117,6 +125,9 @@ class MainWindow(QMainWindow):
         self.button_AI_test = QPushButton("TEST AI")
         self.button_AI_test.pressed.connect(self.button_AI_test_pressed)
 
+        self.button_AI_solve = QPushButton("SOLVE")
+        self.button_AI_solve.pressed.connect(self.button_solve_pressed)
+
         score = QLabel("Score : ")
         time = QLabel("Time : ")
 
@@ -128,6 +139,7 @@ class MainWindow(QMainWindow):
         hb.addWidget(time)
         hb.addWidget(self.clock)
         hb.addWidget(self.button_AI_test)
+        hb.addWidget(self.button_AI_solve)
 
         vb = QVBoxLayout()
         vb.addLayout(hb)
@@ -137,6 +149,7 @@ class MainWindow(QMainWindow):
 
         vb.addLayout(self.grid)
         w.setLayout(vb)
+        
         self.setCentralWidget(w)
 
         self.init_map()
@@ -228,17 +241,14 @@ class MainWindow(QMainWindow):
     """
     def get_perimeter(self):
         CURRENT_REVEALED = self.get_pos_of_revealed()
-        #print("current_revealed", len(CURRENT_REVEALED))
-        perimeter = []
-        neighbors = []
+        perimeter = set()
         for pos in CURRENT_REVEALED:
             neighb_tmp = self.get_surrounding(pos[0], pos[1])
             for elem in neighb_tmp:
                 if((elem.x, elem.y) not in CURRENT_REVEALED):
-                    perimeter.append((elem.x, elem.y))
+                    perimeter.add((elem.x, elem.y))
 
-        perimeter = list(dict.fromkeys(perimeter))
-        return perimeter
+        return list(perimeter)
 
     """
     Get the perimeter og the reveal mine with 1 if it's a mine 0 otherwise
@@ -286,6 +296,15 @@ class MainWindow(QMainWindow):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_revealed):
                     lst_revealed.append((x, y))
+        return lst_revealed
+
+    def get_revealed_tiles(self):
+        lst_revealed = []
+        for x in range(0, self.b_size):
+            for y in range(0, self.b_size):
+                tile = self.grid.itemAtPosition(y, x).widget()
+                if tile.is_revealed:
+                    lst_revealed.append(tile)
         return lst_revealed
 
     """
@@ -396,9 +415,31 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        # TODO : Make this function run as parallal
+        # TODO : Make this function run as parallel
         self.train_AI(10000)
 
+            
+    def win(self):
+        cond = False
+        if self.get_status() == STATUS_FAILED:
+            print("THIS HAPPENS")
+            return True
+
+        if len(self.get_revealed_tiles()) == (LEVEL[0] ** 2 ) - LEVEL[1]:
+            cond = True
+            self.update_status(STATUS_SUCCESS)
+        elif self.get_status() == STATUS_FAILED:
+            self.reveal_mines()
+            return True
+        return cond
+
+    def reveal_mines(self):
+        for x in range(0, self.b_size):
+            for y in range(0, self.b_size):
+                tile = self.grid.itemAtPosition(y, x).widget()
+                if tile.is_mine:
+                    tile.reveal()
+                    
 
     """
     Define the architecture of the neuronal network
@@ -594,6 +635,64 @@ class MainWindow(QMainWindow):
 
         #OLDSCORE = SCORE
         #self.AI_turn(x, y)
+    
+    def button_solve_pressed(self):
+        wins = 0
+        for episode in range(1000):
+            tile = None
+            while not self.win():
+                QApplication.processEvents()
+
+                if tile is not None and tile.is_mine and tile.is_revealed:
+                    self.update_status(STATUS_FAILED)
+                    break
+                #time.sleep(0.15)
+                revealed = self.get_revealed_tiles()
+
+                tmp = list()
+                for item in revealed:
+                    tmp.append(self.get_surrounding(item.x, item.y))
+
+                neighborhoods = [[] for i in range(len(tmp))]
+                for i, neighborhood in enumerate(tmp):
+                    for neighbor in neighborhood:
+                        if not neighbor.is_revealed:
+                            neighborhoods[i].append(neighbor) 
+
+                tile = rule_1(revealed, neighborhoods)
+                if tile != None:
+                    tile.flag()
+                    continue
+                tile = rule_2(revealed, neighborhoods)
+                if tile != None:
+                    tile.click()
+                    tile.reveal()
+                    continue
+
+                perimeter = dict.fromkeys(self.get_perimeter(), 0)
+                coords = naive(revealed, neighborhoods, perimeter)
+                item = random.choice(coords)
+                tile = self.grid.itemAtPosition(item[1], item[0]).widget()
+                tile.click()
+                tile.reveal()
+            if self.get_status() == STATUS_SUCCESS:
+                wins += 1
+            self.reset_map()
+            print("WINS/TOTAL: " + str(wins) + "/" + str(episode))
+            
+
+    def print(self, lst):
+        value_mat = np.zeros((self.b_size,self.b_size))
+        for item in lst:
+            value_mat[item[0]][item[1]] = 1
+        for x in range(0, self.b_size):
+            print("-------------------------------------------------------")
+            for y in range(0, self.b_size):
+                if value_mat[x][y] == 1:
+                    print("X", end="|")
+                else:
+                    print(" ", end="|")
+            print()
 
 
 if __name__ == '__main__':
