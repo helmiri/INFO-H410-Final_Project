@@ -10,7 +10,10 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Dropout
 from keras.layers import Reshape
+from keras.layers import Conv2D
+from keras.layers import MaxPooling2D
 
+from tensorflow.python.client import device_lib
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
 from tensorflow import keras
@@ -19,6 +22,10 @@ import random
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+
+#print(device_lib.list_local_devices())
+# 2.10.0.dev20220427
 
 #To add a package to the project : poetry add 'package_name'
 
@@ -247,17 +254,6 @@ class MainWindow(QMainWindow):
         return peri_bomb
 
     """
-    Give the list of the value of the revealed tiles
-    """
-    def get_input_from_revealed(self):
-        CURRENT_REVEALED = self.get_pos_of_revealed()
-        value_revealed = []
-        for pos in CURRENT_REVEALED:
-            tile = self.grid.itemAtPosition(pos[0], pos[1]).widget()
-            value_revealed.append(tile.get_value())
-        return value_revealed
-
-    """
     Return the matrix of all the tile's value on the board
     """
     def get_tiles_value(self):
@@ -268,6 +264,7 @@ class MainWindow(QMainWindow):
                 value_mat[x,y]= tile.get_value()
         return value_mat
 
+
     """
     Return the matrix of all the tile's value known on the board
     """
@@ -277,9 +274,9 @@ class MainWindow(QMainWindow):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_revealed):
-                    value_mat[x,y]= tile.get_value()
+                        value_mat[x,y]= tile.get_value()
                 else:
-                    value_mat[x,y]= -1
+                    value_mat[x,y]= -8
         return value_mat
 
     def get_pos_of_revealed(self):
@@ -298,7 +295,7 @@ class MainWindow(QMainWindow):
         mines = np.zeros((self.b_size,self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                tile = self.grid.itemAtPosition(x, y).widget()
+                tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_mine):
                     mines[x,y]= 1
                 else:
@@ -367,7 +364,7 @@ class MainWindow(QMainWindow):
     """
     def game_over(self):
         global SCORE
-        print("SCORE : ", SCORE)
+        #print("SCORE : ", SCORE)
         SCORE = 0
         self.reveal_map()
         self.update_status(STATUS_FAILED)
@@ -400,71 +397,99 @@ class MainWindow(QMainWindow):
     """
     def button_AI_learn_pressed(self):
         # TODO : Make this function run as parallal
-        self.train_AI(1000)
+        self.train_AI(500000)
 
 
     """
     Define the architecture of the neuronal network
     """
-    def set_model(self, n_inputs, n_outputs):
+    def set_model(self, n_inputs, n_outputs, episodes):
         global model
         matrixSize = n_inputs
 
-        lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=1600, decay_rate=0.95)
-        rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.1)
+        #lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=episodes, decay_rate=0.95)
+        #rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.1)
 
         model = keras.models.Sequential([
-            keras.layers.Dense((matrixSize*matrixSize), input_shape=(matrixSize,matrixSize), activation="relu"),
-            keras.layers.Dropout(0.2),
+            keras.layers.Dense((matrixSize*matrixSize)*2, input_shape=(matrixSize,matrixSize), activation="relu"),
+            keras.layers.Dropout(0.3),
             keras.layers.Flatten(),
-            keras.layers.Dense((matrixSize*matrixSize)/4, activation="relu"),
-            keras.layers.Dropout(0.1),
-            keras.layers.Dense((matrixSize*matrixSize)/2, activation="relu"),
+            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
             keras.layers.Dropout(0.2),
-            keras.layers.Dense(matrixSize*matrixSize, activation="relu"),
+            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dropout(0.1),
+            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dropout(0.05),
+            keras.layers.Dense((matrixSize*matrixSize)*4, activation="relu"),
+            keras.layers.Dropout(0.025),
+            keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
+        """
+        model = keras.models.Sequential([
+                keras.layers.Dense((matrixSize*matrixSize), input_shape=(matrixSize,matrixSize), activation="relu"),
+                keras.layers.Dropout(0.1),
+                keras.layers.Flatten(),
+                keras.layers.Dense((matrixSize*matrixSize)/4, activation="relu"),
+                keras.layers.Dropout(0.01),
+                keras.layers.Dense((matrixSize*matrixSize)/2, activation="relu"),
+                keras.layers.Dropout(0.01),
+                keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
+                keras.layers.Reshape((matrixSize, matrixSize))
+        ])
+        """
 
-        model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
+        #model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
+        model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
 
 
     """
     Steps to do in order to train the model with all the different game
     """
-    def train_AI(self, episodes):
+    def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
+        episodes = 15
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
         yfin = []
 
         # Create multiple beginning of game (=episodes) and add them to the input list
-        for i in range(0, episodes):
-            print("Creating game #",i+1)
-            Xfin.append(self.get_tiles_value())
-            yfin.append(self.get_all_mine())
+        # TODO: Apprendre des parties complètes pas juste des débuts de game
+        print("Generating", datasetSize,"games :")
+        for i in tqdm(range(0, datasetSize)):
+
+            Xfin.append(self.get_tiles_revealed_value())
+            #yfin.append(self.get_all_mine())
+            yfin.append(self.get_tiles_value())
+            #x = random.randint(0, LEVEL[0]-1)
+            #y = random.randint(0, LEVEL[0]-1)
+            #print(x, y)
+            #self.AI_turn(x, y)
             self.update_status(STATUS_READY)
             self.reset()
 
         # Train the model with all the game in the input list
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
-        self.set_model(n_inputs, n_inputs)
+        self.set_model(n_inputs, n_inputs, episodes)
 
         seed = 7
         np.random.seed(seed)
         X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
 
-        es = EarlyStopping(monitor='loss', mode='min', verbose=1,min_delta=0.01, patience=episodes)
+        #es = EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=0.01, patience=episodes)
+
+
 
         print("SIZE X TRAIN", X_train.shape)
-        history = model.fit(X_train, Y_train, batch_size=100, callbacks=[es], shuffle=True, epochs=episodes, validation_split=0.1)
+        history = model.fit(X_train, Y_train, batch_size=500, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
 
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
-
+        """
         plt.plot(history.history['accuracy'])
         plt.plot(history.history['val_accuracy'])
         plt.title('model accuracy')
@@ -480,8 +505,10 @@ class MainWindow(QMainWindow):
         plt.xlabel('epoch')
         plt.legend(['train', 'test'], loc='upper left')
         plt.show()
-        """
 
+        # 0.0811249986290931 (10000 20 relu relu sigmoid)
+        # 0.0488750003278255 (10000 20 relu relu relu)
+        # 0.0823125019669532 (10000 20 relu sigmoid sigmoid)
 
     """
     Code execute to test the prediction made by the model
@@ -491,14 +518,16 @@ class MainWindow(QMainWindow):
         avg_score = 0
         self.update_status(STATUS_READY)
 
-        nb_test_run = 100
+        nb_test_run = 20
 
         for i in range(0, nb_test_run):
             OLDSCORE = 0
             while(self.get_status() != STATUS_FAILED):
                 testX = np.array([self.get_tiles_revealed_value()])
                 # Given the current board the model predict the prob of mine with yhat
-                yhat = model.predict(testX)
+                yhat = model.predict(np.array([testX[0].transpose()]))
+
+                yhat = np.array([yhat[0].transpose()])
                 #print(yhat)
                 # Give the positions of tile around the revealed tiles
                 peri = self.get_perimeter()
@@ -543,19 +572,32 @@ class MainWindow(QMainWindow):
         global model
         CURRENT_REVEALED = self.get_pos_of_revealed()
         testX = np.array([self.get_tiles_revealed_value()])
-        #print("SIZE X TRAIN", testX.shape)
+
+        print(np.array([testX[0].transpose()]))
+
         # Given the current board the model predict the prob of mine with yhat
-        yhat = model.predict(testX)
+        yhat = model.predict(np.array([testX[0].transpose()]))
+        #yhat = model.predict(np.array([testX[0].transpose()]))
+        #yhat = np.array([yhat[0].transpose()])
+
+        ytrue = self.get_all_mine()
+        ytrue = np.array([ytrue.transpose()])
+
         print(yhat)
+        print(ytrue)
+        #plt.imshow(ytrue, cmap='hot', interpolation='nearest')
+        plt.imshow(yhat[0], cmap='hot', interpolation='nearest')
+        plt.show()
+
         # Give the positions of tile around the revealed tiles
         peri = self.get_perimeter()
-        #print("Peri :", peri)
+
         # Choose the best position to click given the prediction and the perimeter
         x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
-        #print(x, y)
+        print(x, y)
 
         #OLDSCORE = SCORE
-        self.AI_turn(x, y)
+        #self.AI_turn(x, y)
 
 
 if __name__ == '__main__':
