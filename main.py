@@ -638,7 +638,7 @@ class MainWindow(QMainWindow):
     
     def button_solve_pressed(self):
         wins = 0
-        for episode in range(1000):
+        for episode in range(2000):
             tile = None
             while not self.win():
                 QApplication.processEvents()
@@ -679,20 +679,7 @@ class MainWindow(QMainWindow):
                 wins += 1
             self.reset_map()
             print("WINS/TOTAL: " + str(wins) + "/" + str(episode))
-            
-
-    def print(self, lst):
-        value_mat = np.zeros((self.b_size,self.b_size))
-        for item in lst:
-            value_mat[item[0]][item[1]] = 1
-        for x in range(0, self.b_size):
-            print("-------------------------------------------------------")
-            for y in range(0, self.b_size):
-                if value_mat[x][y] == 1:
-                    print("X", end="|")
-                else:
-                    print(" ", end="|")
-            print()
+        print("WIN RATE:" + str(wins/2000*100))
 
 
 if __name__ == '__main__':
