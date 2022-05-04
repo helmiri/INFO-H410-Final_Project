@@ -43,7 +43,8 @@ class Tile(QWidget):
     """
     def __init__(self, x, y, level, *args, **kwargs):
         super(Tile, self).__init__(*args, **kwargs)
-        self.setMaximumSize(QSize(60,60))
+        #self.setMaximumSize(QSize(60,60))
+        self.setFixedSize(QSize(60,60))
         self.x = x
         self.y = y
         self.boardsize = level
@@ -142,7 +143,7 @@ class Tile(QWidget):
 
             #else:
             #self.score += 1
-            
+
     def __hash__(self):
         return hash((self.x, self.y))
 
@@ -153,6 +154,6 @@ class Tile(QWidget):
 
     def __ne__(self, other):
         return not(self == other)
-        
+
     def __str__(self):
         return"({0}, {1})".format(self.x, self.y)

@@ -87,8 +87,8 @@ class MainWindow(QMainWindow):
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         screen_size = QApplication.primaryScreen().availableSize()
-        self.setFixedHeight(min(LEVEL[0]*40, screen_size.height()))
-        self.setFixedWidth(min(LEVEL[0]*40, screen_size.width()))
+        #self.setFixedHeight(min(LEVEL[0]*40, screen_size.height()))
+        #self.setFixedWidth(min(LEVEL[0]*40, screen_size.width()))
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
@@ -149,7 +149,7 @@ class MainWindow(QMainWindow):
 
         vb.addLayout(self.grid)
         w.setLayout(vb)
-        
+
         self.setCentralWidget(w)
 
         self.init_map()
@@ -276,7 +276,7 @@ class MainWindow(QMainWindow):
 
 
     """
-    Return the matrix of all the tile's value known on the board
+    Return the matrix of the tile's value known on the board
     """
     def get_tiles_revealed_value(self):
         value_mat = np.zeros((self.b_size,self.b_size))
@@ -289,6 +289,9 @@ class MainWindow(QMainWindow):
                     value_mat[x,y]= -8
         return value_mat
 
+    """
+    Return a list of all the tile's positions
+    """
     def get_pos_of_revealed(self):
         lst_revealed = []
         for x in range(0, self.b_size):
@@ -298,6 +301,9 @@ class MainWindow(QMainWindow):
                     lst_revealed.append((x, y))
         return lst_revealed
 
+    """
+    Return the matrix of all the tile's positions
+    """
     def get_revealed_tiles(self):
         lst_revealed = []
         for x in range(0, self.b_size):
@@ -383,7 +389,7 @@ class MainWindow(QMainWindow):
     """
     def game_over(self):
         global SCORE
-        #print("SCORE : ", SCORE)
+        print("SCORE : ", SCORE)
         SCORE = 0
         self.reveal_map()
         self.update_status(STATUS_FAILED)
@@ -410,20 +416,6 @@ class MainWindow(QMainWindow):
             self.update_status(STATUS_READY)
             self.reset_map()
 
-
-    """
-    Code execute when the user click on the learn AI button
-    """
-    def button_AI_learn_pressed(self):
-<<<<<<< HEAD
-        # TODO : Make this function run as parallal
-        self.train_AI(500000)
-
-=======
-        # TODO : Make this function run as parallel
-        self.train_AI(10000)
-
-            
     def win(self):
         cond = False
         if self.get_status() == STATUS_FAILED:
@@ -438,14 +430,35 @@ class MainWindow(QMainWindow):
             return True
         return cond
 
+    """
+    Reveal all the mine on theb board
+    """
     def reveal_mines(self):
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if tile.is_mine:
                     tile.reveal()
-                    
->>>>>>> 1d84c176bb92905a7fec10919c382a2c0b4d0c7f
+
+    """
+    Code execute when the user click on the learn AI button
+    """
+    def button_AI_learn_pressed(self):
+        self.train_AI(500) #500000
+
+    """
+    Save the model of NN
+    """
+    def save_model(self):
+        global model
+        model.save('model')
+
+    """
+    Load the model of NN
+    """
+    def load_model(self):
+        global model
+        model = keras.models.load_model('model')
 
     """
     Define the architecture of the neuronal network
@@ -453,16 +466,13 @@ class MainWindow(QMainWindow):
     def set_model(self, n_inputs, n_outputs, episodes):
         global model
         matrixSize = n_inputs
-
         #lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=episodes, decay_rate=0.95)
         #rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.1)
-
         model = keras.models.Sequential([
             keras.layers.Dense((matrixSize*matrixSize)*2, input_shape=(matrixSize,matrixSize), activation="relu"),
             keras.layers.Dropout(0.3),
             keras.layers.Flatten(),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
-<<<<<<< HEAD
             keras.layers.Dropout(0.2),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
             keras.layers.Dropout(0.1),
@@ -470,27 +480,9 @@ class MainWindow(QMainWindow):
             keras.layers.Dropout(0.05),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="relu"),
             keras.layers.Dropout(0.025),
-=======
-            keras.layers.Dropout(0.02),
-            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
-            keras.layers.Dropout(0.02),
->>>>>>> 1d84c176bb92905a7fec10919c382a2c0b4d0c7f
             keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
-        """
-        model = keras.models.Sequential([
-                keras.layers.Dense((matrixSize*matrixSize), input_shape=(matrixSize,matrixSize), activation="relu"),
-                keras.layers.Dropout(0.1),
-                keras.layers.Flatten(),
-                keras.layers.Dense((matrixSize*matrixSize)/4, activation="relu"),
-                keras.layers.Dropout(0.01),
-                keras.layers.Dense((matrixSize*matrixSize)/2, activation="relu"),
-                keras.layers.Dropout(0.01),
-                keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
-                keras.layers.Reshape((matrixSize, matrixSize))
-        ])
-        """
 
         #model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
@@ -503,24 +495,20 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-<<<<<<< HEAD
-        episodes = 15
-=======
-        episodes = 50
->>>>>>> 1d84c176bb92905a7fec10919c382a2c0b4d0c7f
+        episodes = 100
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
         yfin = []
 
         # Create multiple beginning of game (=episodes) and add them to the input list
-        # TODO: Apprendre des parties complètes pas juste des débuts de game
+        # TODO: Apprendre des parties complètes pas juste des débuts de game sur base du solver
         print("Generating", datasetSize,"games :")
         for i in tqdm(range(0, datasetSize)):
-
+            #QApplication.processEvents()
             Xfin.append(self.get_tiles_revealed_value())
-            #yfin.append(self.get_all_mine())
-            yfin.append(self.get_tiles_value())
+            yfin.append(self.get_all_mine())
+            #yfin.append(self.get_tiles_value())
             #x = random.randint(0, LEVEL[0]-1)
             #y = random.randint(0, LEVEL[0]-1)
             #print(x, y)
@@ -538,14 +526,11 @@ class MainWindow(QMainWindow):
 
         #es = EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=0.01, patience=episodes)
 
+        self.save_model()
 
 
         print("SIZE X TRAIN", X_train.shape)
-<<<<<<< HEAD
-        history = model.fit(X_train, Y_train, batch_size=500, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
-=======
-        history = model.fit(X_train, Y_train, batch_size=100, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
->>>>>>> 1d84c176bb92905a7fec10919c382a2c0b4d0c7f
+        history = model.fit(X_train, Y_train, batch_size=5000, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
 
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
@@ -579,11 +564,14 @@ class MainWindow(QMainWindow):
         avg_score = 0
         self.update_status(STATUS_READY)
 
-        nb_test_run = 20
+        self.load_model()
 
+        nb_test_run = 100
+        wins = 0
         for i in range(0, nb_test_run):
             OLDSCORE = 0
             while(self.get_status() != STATUS_FAILED):
+                QApplication.processEvents()
                 testX = np.array([self.get_tiles_revealed_value()])
                 # Given the current board the model predict the prob of mine with yhat
                 yhat = model.predict(np.array([testX[0].transpose()]))
@@ -598,6 +586,8 @@ class MainWindow(QMainWindow):
                 #print(x, y)
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
+            if self.get_status() == STATUS_SUCCESS:
+                wins += 1
 
             avg_score += OLDSCORE
             self.update_status(STATUS_READY)
@@ -605,6 +595,7 @@ class MainWindow(QMainWindow):
             self.reset()
             supersmart.reset()
 
+        print("WIN RATE:" + str(wins/nb_test_run*100))
         print("Avg. score : ", avg_score/nb_test_run)
 
 
@@ -659,12 +650,11 @@ class MainWindow(QMainWindow):
 
         #OLDSCORE = SCORE
         #self.AI_turn(x, y)
-<<<<<<< HEAD
-=======
-    
+
     def button_solve_pressed(self):
         wins = 0
-        for episode in range(2000):
+        nb_game = 100
+        for episode in range(nb_game):
             tile = None
             while not self.win():
                 QApplication.processEvents()
@@ -683,7 +673,7 @@ class MainWindow(QMainWindow):
                 for i, neighborhood in enumerate(tmp):
                     for neighbor in neighborhood:
                         if not neighbor.is_revealed:
-                            neighborhoods[i].append(neighbor) 
+                            neighborhoods[i].append(neighbor)
 
                 tile = rule_1(revealed, neighborhoods)
                 if tile != None:
@@ -705,8 +695,7 @@ class MainWindow(QMainWindow):
                 wins += 1
             self.reset_map()
             print("WINS/TOTAL: " + str(wins) + "/" + str(episode))
-        print("WIN RATE:" + str(wins/2000*100))
->>>>>>> 1d84c176bb92905a7fec10919c382a2c0b4d0c7f
+        print("WIN RATE:" + str(wins/nb_game*100))
 
 
 if __name__ == '__main__':

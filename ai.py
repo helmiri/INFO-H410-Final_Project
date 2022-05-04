@@ -6,6 +6,10 @@ import random
 # https://sdlee94.github.io/Minesweeper-AI-Reinforcement-Learning/
 # http://www.angusgriffith.com/2019/12/31/beating-minesweeper-with-neural-networks.html
 
+
+# TODO : Rename class as action
+# TODO : Start avec les corners de la board
+
 class AI:
     def __init__(self):
         self.boardsize = 0
@@ -30,9 +34,9 @@ class AI:
         for pos in peri:
             if((pos[0], pos[1]) not in positions_revealed):
                 prob_to_evaluate.append(probmine[0][pos[0], pos[1]])
-        #minval = np.amin(prob_to_evaluate)
+        minval = np.amin(prob_to_evaluate)
         # TODO : Changer remove ci-dessous si on veut juste apprendre position des mines
-        minval = np.amax(prob_to_evaluate)
+        #minval = np.amax(prob_to_evaluate)
         index = np.where(prob_to_evaluate == np.amin(prob_to_evaluate))
 
         return peri[index[0][0]][0], peri[index[0][0]][1]
