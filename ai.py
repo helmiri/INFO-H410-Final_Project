@@ -22,6 +22,10 @@ class AI:
         self.positions_revealed = []
 
     def act(self, probmine, peri, current_revealed):
+        # Comment ?
+        (x,y) = self.getMinProbMine(probmine)
+        self.positions_revealed.append((x,y))
+        return (x,y)
         # Get prob minimum of mine in the perimeter
         return self.getMinProbPeri(peri, probmine, current_revealed)
 
@@ -30,8 +34,8 @@ class AI:
     Return the position of the tile in the perimeter with the minimum probability of being a mine
     """
     def getMinProbPeri(self, peri, probmine, positions_revealed):
-        prob_to_evaluate = []
 
+        prob_to_evaluate = []
         for pos in peri:
             if((pos[0], pos[1]) not in positions_revealed):
                 prob_to_evaluate.append(probmine[0][pos[0], pos[1]])
@@ -40,7 +44,9 @@ class AI:
         # TODO : Changer remove ci-dessous si on veut juste apprendre position des mines
         #minval = np.amax(prob_to_evaluate)
         index = np.where(prob_to_evaluate == np.amin(prob_to_evaluate))
-
+        print(index)
+        print(index[0][0])
+        print(peri[index[0][0]][0], peri[index[0][0]][1])
         #index = np.where(probmine == np.amin(probmine))
         return peri[index[0][0]][0], peri[index[0][0]][1]
 
@@ -49,12 +55,11 @@ class AI:
     Return the position of the tile in the perimeter with the maximum probability of being a mine
     """
     def getMaxProbPeri(self, peri, probmine):
-        global positions_revealed
         tmp_max = 0
         max_i = None
         max_j = None
         for pos in peri:
-            if((pos[0], pos[1]) not in positions_revealed and probmine[pos[0], pos[1]] > tmp_max):
+            if((pos[0], pos[1]) not in self.positions_revealed and probmine[pos[0], pos[1]] > tmp_max):
                 tmp_max = probmine[pos[0], pos[1]]
                 max_i = pos[0]
                 max_j = pos[1]
@@ -69,10 +74,10 @@ class AI:
         tmp_min = 10000000
         min_i = None
         min_j = None
-        for i in range(0, len(probmine)):
-            for j in range(0, len(probmine)):
-                if(probmine[i,j] < tmp_min):
-                    tmp_min = probmine[i,j]
+        for i in range(0, len(probmine[0])):
+            for j in range(0, len(probmine[0])):
+                if(probmine[0][i,j] < tmp_min and (i,j) not in self.positions_revealed):
+                    tmp_min = probmine[0][i,j]
                     min_i = i
                     min_j = j
         return min_i, min_j

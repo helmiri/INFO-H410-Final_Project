@@ -114,19 +114,19 @@ class MainWindow(QMainWindow):
         self.score.setText(str(SCORE))
         self.clock.setText("000")
 
-        self.button = QPushButton("RESTART")
+        self.button = QPushButton("Restart")
         self.button.pressed.connect(self.button_pressed)
 
-        self.button_AI_learn = QPushButton("LEARN AI")
+        self.button_AI_learn = QPushButton("Learn")
         self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
 
-        self.button_AI_play = QPushButton("PLAY AI")
+        self.button_AI_play = QPushButton("Play")
         self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
 
-        self.button_AI_test = QPushButton("TEST AI")
+        self.button_AI_test = QPushButton("Test")
         self.button_AI_test.pressed.connect(self.button_AI_test_pressed)
 
-        self.button_AI_solve = QPushButton("SOLVE")
+        self.button_AI_solve = QPushButton("Solve")
         self.button_AI_solve.pressed.connect(self.button_solve_pressed)
 
         score = QLabel("Score : ")
@@ -445,7 +445,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(400000) #500000
+        self.train_AI(800000) #500000
 
     """
     Save the model of NN
@@ -514,7 +514,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 50
+        episodes = 30
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
@@ -585,7 +585,7 @@ class MainWindow(QMainWindow):
 
         #self.load_model()
 
-        nb_test_run = 1000
+        nb_test_run = 100
         wins = 0
         for i in range(0, nb_test_run):
             OLDSCORE = 0
@@ -607,6 +607,7 @@ class MainWindow(QMainWindow):
                 self.AI_turn(x, y)
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
+                print("WIN !")
 
             avg_score += OLDSCORE
             self.update_status(STATUS_READY)
