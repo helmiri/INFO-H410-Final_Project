@@ -32,8 +32,6 @@ from tqdm import tqdm
 
 #To add a package to the project : poetry add 'package_name'
 
-# TODO : Bug score not updated when played by hand
-
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
@@ -45,7 +43,7 @@ LEVELS = [
     (16, 40),
     (24, 99)
 ]
-LEVEL = LEVELS[1]
+LEVEL = LEVELS[0]
 
 model = Sequential()
 supersmart = AI()
