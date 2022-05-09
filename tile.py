@@ -43,13 +43,14 @@ class Tile(QWidget):
     """
     def __init__(self, x, y, level, *args, **kwargs):
         super(Tile, self).__init__(*args, **kwargs)
+        screen_size = QApplication.primaryScreen().availableSize()
+        tilesize = screen_size.height()//22
+        self.setFixedSize(QSize(tilesize,tilesize))
         #self.setMaximumSize(QSize(60,60))
-        self.setFixedSize(QSize(60,60))
         self.x = x
         self.y = y
         self.boardsize = level
-        #self.current_revealed = lst_revealed
-        #self.score = scr
+
     """
     Reset the boolean flag of a tile
     """
@@ -125,7 +126,6 @@ class Tile(QWidget):
     def click(self):
         if not self.is_revealed:
             self.reveal()
-            #self.current_revealed.append((self.x, self.y))
             if self.adjacent_n == 0:
                 self.expandable.emit(self.x, self.y)
         self.clicked.emit()

@@ -49,6 +49,7 @@ LEVEL = LEVELS[1]
 
 model = Sequential()
 supersmart = AI()
+np.random.seed(2022)
 
 
 IMG_BOMB = QImage("./images/bomb.png")
@@ -84,11 +85,13 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Minesweeper AI")
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint);
         self.setWindowIcon(QIcon("./images/bomb.png"))
-        self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
-        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
+        #self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
+        #self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         screen_size = QApplication.primaryScreen().availableSize()
-        #self.setFixedHeight(min(LEVEL[0]*40, screen_size.height()))
-        #self.setFixedWidth(min(LEVEL[0]*40, screen_size.width()))
+        tilesize = screen_size.height()//20
+        self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
+        self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
+
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
@@ -145,7 +148,7 @@ class MainWindow(QMainWindow):
         vb.addLayout(hb)
 
         self.grid = QGridLayout()
-        self.grid.setSpacing(5)
+        self.grid.setSpacing(10)
 
         vb.addLayout(self.grid)
         w.setLayout(vb)
@@ -444,7 +447,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(500) #500000
+        self.train_AI(400000) #500000
 
     """
     Save the model of NN
@@ -454,11 +457,12 @@ class MainWindow(QMainWindow):
         model.save('model')
 
     """
-    Load the model of NN
+    Load the model of
     """
     def load_model(self):
         global model
         model = keras.models.load_model('model')
+        #https://www.tensorflow.org/guide/keras/save_and_serialize
 
     """
     Define the architecture of the neuronal network
@@ -466,23 +470,40 @@ class MainWindow(QMainWindow):
     def set_model(self, n_inputs, n_outputs, episodes):
         global model
         matrixSize = n_inputs
+
         #lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=episodes, decay_rate=0.95)
         #rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.1)
+
         model = keras.models.Sequential([
             keras.layers.Dense((matrixSize*matrixSize)*2, input_shape=(matrixSize,matrixSize), activation="relu"),
             keras.layers.Dropout(0.3),
             keras.layers.Flatten(),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
             keras.layers.Dropout(0.2),
-            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dense((matrixSize*matrixSize)*8, activation="sigmoid"),
             keras.layers.Dropout(0.1),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
             keras.layers.Dropout(0.05),
-            keras.layers.Dense((matrixSize*matrixSize)*4, activation="relu"),
+            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dropout(0.05),
+            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
             keras.layers.Dropout(0.025),
             keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
+        """
+        model = keras.models.Sequential([
+                keras.layers.Dense((matrixSize*matrixSize), input_shape=(matrixSize,matrixSize), activation="relu"),
+                keras.layers.Dropout(0.1),
+                keras.layers.Flatten(),
+                keras.layers.Dense((matrixSize*matrixSize)/4, activation="relu"),
+                keras.layers.Dropout(0.01),
+                keras.layers.Dense((matrixSize*matrixSize)/2, activation="relu"),
+                keras.layers.Dropout(0.01),
+                keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
+                keras.layers.Reshape((matrixSize, matrixSize))
+        ])
+        """
 
         #model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
@@ -495,7 +516,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 100
+        episodes = 50
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
@@ -530,7 +551,7 @@ class MainWindow(QMainWindow):
 
 
         print("SIZE X TRAIN", X_train.shape)
-        history = model.fit(X_train, Y_train, batch_size=5000, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+        history = model.fit(X_train, Y_train, batch_size=250, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
 
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
@@ -564,9 +585,9 @@ class MainWindow(QMainWindow):
         avg_score = 0
         self.update_status(STATUS_READY)
 
-        self.load_model()
+        #self.load_model()
 
-        nb_test_run = 100
+        nb_test_run = 1000
         wins = 0
         for i in range(0, nb_test_run):
             OLDSCORE = 0
@@ -622,6 +643,8 @@ class MainWindow(QMainWindow):
     """
     def button_AI_test_pressed(self):
         global model
+        #self.load_model()
+
         CURRENT_REVEALED = self.get_pos_of_revealed()
         testX = np.array([self.get_tiles_revealed_value()])
 
