@@ -47,7 +47,8 @@ LEVEL = LEVELS[0]
 
 model = Sequential()
 supersmart = AI()
-np.random.seed(2022)
+seed = 7
+np.random.seed(seed)
 
 
 IMG_BOMB = QImage("./images/bomb.png")
@@ -420,7 +421,6 @@ class MainWindow(QMainWindow):
     def win(self):
         cond = False
         if self.get_status() == STATUS_FAILED:
-            print("THIS HAPPENS")
             return True
 
         if len(self.get_revealed_tiles()) == (LEVEL[0] ** 2 ) - LEVEL[1]:
@@ -450,8 +450,7 @@ class MainWindow(QMainWindow):
     """
     Save the model of NN
     """
-    def save_model(self):
-        global model
+    def save_model(self, model):
         model.save('model')
 
     """
@@ -478,14 +477,14 @@ class MainWindow(QMainWindow):
             keras.layers.Flatten(),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
             keras.layers.Dropout(0.2),
-            keras.layers.Dense((matrixSize*matrixSize)*8, activation="sigmoid"),
+            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
             keras.layers.Dropout(0.1),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
-            keras.layers.Dropout(0.05),
+            keras.layers.Dropout(0.1),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
-            keras.layers.Dropout(0.05),
+            keras.layers.Dropout(0.1),
             keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
-            keras.layers.Dropout(0.025),
+            keras.layers.Dropout(0.1),
             keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
@@ -514,7 +513,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 30
+        episodes = 100
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
@@ -523,6 +522,22 @@ class MainWindow(QMainWindow):
         # Create multiple beginning of game (=episodes) and add them to the input list
         # TODO: Apprendre des parties complètes pas juste des débuts de game sur base du solver
         print("Generating", datasetSize,"games :")
+
+        nb_board_game = 0
+        while nb_board_game < datasetSize:
+            while self.get_status() != STATUS_FAILED:
+                Xfin.append(self.get_tiles_revealed_value())
+                yfin.append(self.get_all_mine())
+                #yfin.append(self.get_tiles_value())
+                x = random.randint(0, LEVEL[0]-1)
+                y = random.randint(0, LEVEL[0]-1)
+                #print(x, y)
+                self.AI_turn(x, y)
+                nb_board_game+=1
+            self.update_status(STATUS_READY)
+            self.reset()
+
+        """
         for i in tqdm(range(0, datasetSize)):
             #QApplication.processEvents()
             Xfin.append(self.get_tiles_revealed_value())
@@ -531,25 +546,26 @@ class MainWindow(QMainWindow):
             #x = random.randint(0, LEVEL[0]-1)
             #y = random.randint(0, LEVEL[0]-1)
             #print(x, y)
-            #self.AI_turn(x, y)
+            self.AI_turn(x, y)
             self.update_status(STATUS_READY)
             self.reset()
+        """
 
         # Train the model with all the game in the input list
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
         self.set_model(n_inputs, n_inputs, episodes)
 
-        seed = 7
-        np.random.seed(seed)
+        #seed = 7
+        #np.random.seed(seed)
         X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
 
         #es = EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=0.01, patience=episodes)
 
-        self.save_model()
+        self.save_model(model)
 
 
         print("SIZE X TRAIN", X_train.shape)
-        history = model.fit(X_train, Y_train, batch_size=250, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
 
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
@@ -589,7 +605,8 @@ class MainWindow(QMainWindow):
         wins = 0
         for i in range(0, nb_test_run):
             OLDSCORE = 0
-            while(self.get_status() != STATUS_FAILED):
+            while not self.win():
+
                 QApplication.processEvents()
                 testX = np.array([self.get_tiles_revealed_value()])
                 # Given the current board the model predict the prob of mine with yhat
@@ -605,10 +622,13 @@ class MainWindow(QMainWindow):
                 #print(x, y)
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
+
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
                 print("WIN !")
-
+            else:
+                print("LOSE :(")
+            #print("Status : ", self.get_status())
             avg_score += OLDSCORE
             self.update_status(STATUS_READY)
             SCORE = 0
@@ -629,7 +649,7 @@ class MainWindow(QMainWindow):
         if(not tile.is_revealed):
             tile.click()
             tile.reveal()
-            self.show()
+            #self.show()
             if tile.is_mine: #GAMEOVER
                 tile.ohno.emit()
                 self.update_status(STATUS_FAILED)
@@ -675,7 +695,7 @@ class MainWindow(QMainWindow):
 
     def button_solve_pressed(self):
         wins = 0
-        nb_game = 100
+        nb_game = 1000
         for episode in range(nb_game):
             tile = None
             while not self.win():
