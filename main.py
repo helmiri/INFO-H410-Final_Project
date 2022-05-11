@@ -445,7 +445,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(800000) #500000
+        self.train_AI(600000) #500000
 
     """
     Save the model of NN
@@ -513,7 +513,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 100
+        episodes = 80
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
@@ -619,9 +619,14 @@ class MainWindow(QMainWindow):
                 CURRENT_REVEALED = self.get_pos_of_revealed()
                 # Choose the best position to click given the prediction and the perimeter
                 x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
-                #print(x, y)
+                fx, fy = supersmart.flag(yhat, peri, CURRENT_REVEALED)
+                #print(fx, fy)
+                ftile = self.grid.itemAtPosition(fy, fx).widget()
+                ftile.flag()
+
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
+
 
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
