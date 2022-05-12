@@ -445,7 +445,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(600000) #500000
+        self.train_AI(700000) #500000
 
     """
     Save the model of NN
@@ -471,6 +471,17 @@ class MainWindow(QMainWindow):
         #lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=episodes, decay_rate=0.95)
         #rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.1)
 
+        # CNN model test
+        """
+        model = models.Sequential()
+        model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
+        model.add(layers.MaxPooling2D((2, 2)))
+        model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+        model.add(layers.MaxPooling2D((2, 2)))
+        model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+
+        # Best model from now
+        """
         model = keras.models.Sequential([
             keras.layers.Dense((matrixSize*matrixSize)*2, input_shape=(matrixSize,matrixSize), activation="relu"),
             keras.layers.Dropout(0.3),
@@ -488,6 +499,8 @@ class MainWindow(QMainWindow):
             keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
+
+        # First model
         """
         model = keras.models.Sequential([
                 keras.layers.Dense((matrixSize*matrixSize), input_shape=(matrixSize,matrixSize), activation="relu"),
@@ -513,7 +526,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 80
+        episodes = 100
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
@@ -523,9 +536,58 @@ class MainWindow(QMainWindow):
         # TODO: Apprendre des parties complètes pas juste des débuts de game sur base du solver
         print("Generating", datasetSize,"games :")
 
+        # Play solver and keep only win game
+        """
+        nb_win_game = 0
+        while nb_win_game < datasetSize:
+            tile = None
+            Xtmp = []
+            ytmp = []
+            while not self.win():
+                if tile is not None and tile.is_mine and tile.is_revealed:
+                    self.update_status(STATUS_FAILED)
+                    break
+                revealed = self.get_revealed_tiles()
+
+                tmp = list()
+                for item in revealed:
+                    tmp.append(self.get_surrounding(item.x, item.y))
+
+                neighborhoods = [[] for i in range(len(tmp))]
+                for i, neighborhood in enumerate(tmp):
+                    for neighbor in neighborhood:
+                        if not neighbor.is_revealed:
+                            neighborhoods[i].append(neighbor)
+
+                tile = rule_1(revealed, neighborhoods)
+                if tile != None:
+                    tile.flag()
+                    continue
+                tile = rule_2(revealed, neighborhoods)
+                if tile != None:
+                    tile.click()
+                    tile.reveal()
+                    continue
+
+                perimeter = dict.fromkeys(self.get_perimeter(), 0)
+                coords = naive(revealed, neighborhoods, perimeter)
+                item = random.choice(coords)
+                tile = self.grid.itemAtPosition(item[1], item[0]).widget()
+                tile.click()
+                tile.reveal()
+                Xtmp.append(self.get_tiles_revealed_value())
+                ytmp.append(self.get_all_mine())
+            if self.get_status() == STATUS_SUCCESS:
+                nb_win_game += len(Xtmp)
+                print(nb_win_game)
+                Xfin += Xtmp
+                yfin += ytmp
+            self.reset_map()
+        """
+
         nb_board_game = 0
         while nb_board_game < datasetSize:
-            while self.get_status() != STATUS_FAILED:
+            while not self.win():
                 Xfin.append(self.get_tiles_revealed_value())
                 yfin.append(self.get_all_mine())
                 #yfin.append(self.get_tiles_value())
@@ -546,7 +608,7 @@ class MainWindow(QMainWindow):
             #x = random.randint(0, LEVEL[0]-1)
             #y = random.randint(0, LEVEL[0]-1)
             #print(x, y)
-            self.AI_turn(x, y)
+            #self.AI_turn(x, y)
             self.update_status(STATUS_READY)
             self.reset()
         """
@@ -561,11 +623,11 @@ class MainWindow(QMainWindow):
 
         #es = EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=0.01, patience=episodes)
 
-        self.save_model(model)
+        #self.save_model(model)
 
 
         print("SIZE X TRAIN", X_train.shape)
-        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+        history = model.fit(X_train, Y_train, batch_size=250, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
 
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
@@ -601,7 +663,7 @@ class MainWindow(QMainWindow):
 
         #self.load_model()
 
-        nb_test_run = 100
+        nb_test_run = 500
         wins = 0
         for i in range(0, nb_test_run):
             OLDSCORE = 0
