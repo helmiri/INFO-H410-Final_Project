@@ -6,6 +6,7 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from sklearn import neighbors
 from ai import AI
 from solver import naive, rule_1, rule_2
+from rl import QAgent
 from tile import Tile
 from numpy import asarray
 
@@ -88,13 +89,14 @@ class MainWindow(QMainWindow):
         #self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         screen_size = QApplication.primaryScreen().availableSize()
         tilesize = screen_size.height()//20
-        self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
-        self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
+        #self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
+        #self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
 
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
         hb = QHBoxLayout()
+        hb1 = QHBoxLayout()
 
         self.score = QLabel()
         self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
@@ -130,6 +132,12 @@ class MainWindow(QMainWindow):
         self.button_AI_solve = QPushButton("Solve")
         self.button_AI_solve.pressed.connect(self.button_solve_pressed)
 
+        self.button2 = QPushButton("RL learn")
+        self.button2.pressed.connect(self.rl_learn)
+
+        self.button3 = QPushButton("RL play")
+        self.button3.pressed.connect(self.rl_play)
+
         score = QLabel("Score : ")
         time = QLabel("Time : ")
 
@@ -143,8 +151,12 @@ class MainWindow(QMainWindow):
         hb.addWidget(self.button_AI_test)
         hb.addWidget(self.button_AI_solve)
 
+        hb1.addWidget(self.button2)
+        hb1.addWidget(self.button3)
+
         vb = QVBoxLayout()
         vb.addLayout(hb)
+        vb.addLayout(hb1)
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
@@ -518,6 +530,70 @@ class MainWindow(QMainWindow):
         #model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
+
+    def rl_learn(self):
+        alpha = 0.1
+        epsilon_max = 0.9
+        epsilon_min = 0.1
+        epsilon_decay = 0.99
+
+        #action : 0 = click ; 1 = flag
+        self.agent = QAgent(self.b_size*self.b_size, alpha, epsilon_max, epsilon_min, epsilon_decay)
+        #click : 1 if not mine ; -1 if mine
+        #flag : 1 if mine ; -1 if not mine
+        self.run_episode(True)
+
+    def rl_play(self):
+        self.reset_map()
+        self.run_episode(False)
+
+    def run_episode(self, training):
+        wins = 0
+        nb_game = 1000
+        for episode in range(nb_game):
+            while not self.win():
+                QApplication.processEvents()
+
+                #random tile
+                x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
+                #print(x,y)
+                tile = self.grid.itemAtPosition(y, x).widget()
+                #print(tile.x + (self.b_size * tile.y))
+                action = self.agent.act(tile.x + (self.b_size * tile.y), training)
+
+                #tile clicked
+                if action == 0:
+                    tile.click()
+                    tile.reveal()
+                #tile flagged
+                elif action == 1:
+                    tile.flag()
+
+                #click + not mine
+                if not tile.is_mine and tile.is_revealed:
+                    if training:
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 0, 1, True)
+                #click + mine
+                elif tile.is_mine and tile.is_revealed:
+                    if training:
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 0, -1, True)
+                    self.update_status(STATUS_FAILED)
+                    break
+                #flag + not mine
+                elif not tile.is_mine and tile.is_flagged:
+                    if training:
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, -0.5, True)
+                #flag + mine
+                elif tile.is_mine and tile.is_flagged:
+                    if training:
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, 10, True)
+
+            if self.get_status() == STATUS_SUCCESS:
+                wins += 1
+            self.reset_map()
+            print("WINS/TOTAL: " + str(wins) + "/" + str(episode+1))
+        print("WIN RATE:" + str(wins/nb_game*100))
+        #print(self.agent.q_table)
 
 
     """
