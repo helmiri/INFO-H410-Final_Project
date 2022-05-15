@@ -7,10 +7,9 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
-IMG_BOMB = QImage("./imagfes/bomb.png")
+IMG_BOMB = QImage("./images/bomb.png")
 IMG_FLAG = QImage("./images/flag.png")
 IMG_START = QImage("./images/rocket.png")
-IMG_CLOCK = QImage("./images/clock-select.png")
 NUM_COLORS = {
     0: QColor('#4CAF50'),
     1: QColor('#00f3ff'),

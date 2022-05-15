@@ -52,10 +52,7 @@ seed = 7
 np.random.seed(seed)
 
 
-IMG_BOMB = QImage("./images/bomb.png")
-IMG_FLAG = QImage("./images/flag.png")
-IMG_START = QImage("./images/rocket.png")
-IMG_CLOCK = QImage("./images/clock-select.png")
+
 NUM_COLORS = {
     0: QColor('#4CAF50'),
     1: QColor('#00f3ff'),
@@ -537,10 +534,8 @@ class MainWindow(QMainWindow):
         epsilon_min = 0.1
         epsilon_decay = 0.99
 
-        #action : 0 = click ; 1 = flag
+        #action : 0 = click ; 1 = flag ; 2 = ignore
         self.agent = QAgent(self.b_size*self.b_size, alpha, epsilon_max, epsilon_min, epsilon_decay)
-        #click : 1 if not mine ; -1 if mine
-        #flag : 1 if mine ; -1 if not mine
         self.run_episode(True)
 
     def rl_play(self):
@@ -556,44 +551,58 @@ class MainWindow(QMainWindow):
 
                 #random tile
                 x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
-                #print(x,y)
                 tile = self.grid.itemAtPosition(y, x).widget()
                 #print(tile.x + (self.b_size * tile.y))
                 action = self.agent.act(tile.x + (self.b_size * tile.y), training)
+                print(action)
 
                 #tile clicked
                 if action == 0:
                     tile.click()
                     tile.reveal()
                 #tile flagged
+                """
                 elif action == 1:
                     tile.flag()
+                """
+                #action == 2 -> tile ingored
 
                 #click + not mine
                 if not tile.is_mine and tile.is_revealed:
                     if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 0, 1, True)
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 0, 1, False)
                 #click + mine
                 elif tile.is_mine and tile.is_revealed:
                     if training:
                         self.agent.learn(tile.x + (self.b_size * tile.y), 0, -1, True)
                     self.update_status(STATUS_FAILED)
                     break
+                #ignore + not mine
+                elif not tile.is_mine and not tile.is_revealed:
+                    if training:
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, -0.1, False)
+                #ignore + mine
+                elif tile.is_mine and not tile.is_revealed:
+                    if training:
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, 5, False)
+                """
                 #flag + not mine
                 elif not tile.is_mine and tile.is_flagged:
                     if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, -0.5, True)
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, -0.5, False)
                 #flag + mine
                 elif tile.is_mine and tile.is_flagged:
                     if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, 10, True)
+                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, 10, False)
+                """
+
 
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.reset_map()
             print("WINS/TOTAL: " + str(wins) + "/" + str(episode+1))
         print("WIN RATE:" + str(wins/nb_game*100))
-        #print(self.agent.q_table)
+        print(self.agent.q_table)
 
 
     """
