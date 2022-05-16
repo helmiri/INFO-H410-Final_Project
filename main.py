@@ -454,7 +454,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(10000) #500000
+        self.train_AI(80000) #500000
 
     """
     Save the model of NN
@@ -478,16 +478,16 @@ class MainWindow(QMainWindow):
         matrixSize = n_inputs
 
         # CNN model test
-        num_filters = 512
-        filter_size = 4
-        pool_size = 4
+        num_filters = 16
+        filter_size = 2
+        pool_size = 1
 
         model = keras.models.Sequential([
           keras.layers.Conv2D(num_filters, filter_size, input_shape=(matrixSize,matrixSize, 1)),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
           keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
-          keras.layers.Dropout(0.1),
+          keras.layers.Dropout(0.2),
           keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
           keras.layers.Dropout(0.05),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
@@ -614,7 +614,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 5
+        episodes = 15
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
