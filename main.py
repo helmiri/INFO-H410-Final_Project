@@ -50,7 +50,7 @@ model = Sequential()
 supersmart = AI()
 seed = 7
 np.random.seed(seed)
-
+random.seed(seed)
 
 
 NUM_COLORS = {
@@ -454,7 +454,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(700000) #500000
+        self.train_AI(10000) #500000
 
     """
     Save the model of NN
@@ -477,19 +477,22 @@ class MainWindow(QMainWindow):
         global model
         matrixSize = n_inputs
 
-        #lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=episodes, decay_rate=0.95)
-        #rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.1)
-
         # CNN model test
-        """
-        model = models.Sequential()
-        model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
-        model.add(layers.MaxPooling2D((2, 2)))
-        model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-        model.add(layers.MaxPooling2D((2, 2)))
-        model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+        num_filters = 512
+        filter_size = 4
+        pool_size = 4
 
-        # Best model from now
+        model = keras.models.Sequential([
+          keras.layers.Conv2D(num_filters, filter_size, input_shape=(matrixSize,matrixSize, 1)),
+          keras.layers.MaxPooling2D(pool_size=pool_size),
+          keras.layers.Flatten(),
+          keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
+          keras.layers.Dropout(0.1),
+          keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
+          keras.layers.Dropout(0.05),
+          keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
+          keras.layers.Reshape((matrixSize, matrixSize))
+        ])
         """
         model = keras.models.Sequential([
             keras.layers.Dense((matrixSize*matrixSize)*2, input_shape=(matrixSize,matrixSize), activation="relu"),
@@ -508,7 +511,7 @@ class MainWindow(QMainWindow):
             keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
-
+        """
         # First model
         """
         model = keras.models.Sequential([
@@ -611,7 +614,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 100
+        episodes = 5
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
@@ -712,11 +715,16 @@ class MainWindow(QMainWindow):
 
 
         print("SIZE X TRAIN", X_train.shape)
-        history = model.fit(X_train, Y_train, batch_size=250, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+        X_train = X_train.reshape((X_train.shape[0], 8, 8, 1))
+        print("SIZE X TRAIN", X_train.shape)
 
+        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+
+        X_test = X_test.reshape((X_test.shape[0], 8, 8, 1))
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
+
         """
         plt.plot(history.history['accuracy'])
         plt.plot(history.history['val_accuracy'])
@@ -756,8 +764,15 @@ class MainWindow(QMainWindow):
 
                 QApplication.processEvents()
                 testX = np.array([self.get_tiles_revealed_value()])
+
+                # CNN model
+                test_x = np.array(testX[0].transpose())
+                test_x = test_x.reshape(1, 8, 8, 1)
+                yhat = model.predict(test_x)
+
+
                 # Given the current board the model predict the prob of mine with yhat
-                yhat = model.predict(np.array([testX[0].transpose()]))
+                #yhat = model.predict(np.array([testX[0].transpose()]))
 
                 yhat = np.array([yhat[0].transpose()])
                 #print(yhat)
@@ -790,7 +805,6 @@ class MainWindow(QMainWindow):
         print("WIN RATE:" + str(wins/nb_test_run*100))
         print("Avg. score : ", avg_score/nb_test_run)
 
-
     """
     Make the different action of a normal turn in game like it is a human who is playing (click etc)
     """
@@ -819,10 +833,14 @@ class MainWindow(QMainWindow):
         CURRENT_REVEALED = self.get_pos_of_revealed()
         testX = np.array([self.get_tiles_revealed_value()])
 
-        print(np.array([testX[0].transpose()]))
+        # For CNN model
+        test_x = np.array(testX[0].transpose())
+        test_x = test_x.reshape(1, 8, 8, 1)
+        print(test_x.shape)
+        print(test_x)
+        yhat = model.predict(test_x)
 
         # Given the current board the model predict the prob of mine with yhat
-        yhat = model.predict(np.array([testX[0].transpose()]))
         #yhat = model.predict(np.array([testX[0].transpose()]))
         #yhat = np.array([yhat[0].transpose()])
 
@@ -843,7 +861,7 @@ class MainWindow(QMainWindow):
         print(x, y)
 
         #OLDSCORE = SCORE
-        #self.AI_turn(x, y)
+        #self.AI_turn(x, y)        #self.AI_turn(x, y)
 
     def button_solve_pressed(self):
         wins = 0
