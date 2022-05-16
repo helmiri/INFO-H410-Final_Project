@@ -486,7 +486,7 @@ class MainWindow(QMainWindow):
           keras.layers.Conv2D(num_filters, filter_size, input_shape=(matrixSize,matrixSize, 1)),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
+          keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
           keras.layers.Dropout(0.2),
           keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
           keras.layers.Dropout(0.05),
@@ -614,7 +614,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 15
+        episodes = 10
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
