@@ -454,7 +454,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(80000) #500000
+        self.train_AI(500000) #500000
 
     """
     Save the model of NN
@@ -478,12 +478,14 @@ class MainWindow(QMainWindow):
         matrixSize = n_inputs
 
         # CNN model test
-        num_filters = 16
+        num_filters = 32
         filter_size = 2
         pool_size = 1
 
         model = keras.models.Sequential([
-          keras.layers.Conv2D(num_filters, filter_size, input_shape=(matrixSize,matrixSize, 1)),
+          keras.layers.Conv2D(32, filter_size, input_shape=(matrixSize,matrixSize, 1)),
+          keras.layers.MaxPooling2D(pool_size=pool_size),
+          keras.layers.Conv2D(16, filter_size),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
           keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
@@ -512,22 +514,8 @@ class MainWindow(QMainWindow):
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
         """
-        # First model
-        """
-        model = keras.models.Sequential([
-                keras.layers.Dense((matrixSize*matrixSize), input_shape=(matrixSize,matrixSize), activation="relu"),
-                keras.layers.Dropout(0.1),
-                keras.layers.Flatten(),
-                keras.layers.Dense((matrixSize*matrixSize)/4, activation="relu"),
-                keras.layers.Dropout(0.01),
-                keras.layers.Dense((matrixSize*matrixSize)/2, activation="relu"),
-                keras.layers.Dropout(0.01),
-                keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
-                keras.layers.Reshape((matrixSize, matrixSize))
-        ])
-        """
 
-        #model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
+
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
 
@@ -614,7 +602,7 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 10
+        episodes = 25
 
         # get_tiles_value : give the value of each tile on the board
         Xfin = []
@@ -802,7 +790,7 @@ class MainWindow(QMainWindow):
             self.reset()
             supersmart.reset()
 
-        print("WIN RATE:" + str(wins/nb_test_run*100))
+        print("WIN RATE:" + str(wins/nb_test_run*100)+ "%")
         print("Avg. score : ", avg_score/nb_test_run)
 
     """
