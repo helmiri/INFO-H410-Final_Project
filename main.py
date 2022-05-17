@@ -20,6 +20,7 @@ from keras.layers import MaxPooling2D
 from tensorflow.python.client import device_lib
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import normalize
 from tensorflow import keras
 
 import random
@@ -94,6 +95,7 @@ class MainWindow(QMainWindow):
         w = QWidget()
         hb = QHBoxLayout()
         hb1 = QHBoxLayout()
+        hb2 = QHBoxLayout()
 
         self.score = QLabel()
         self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
@@ -117,43 +119,45 @@ class MainWindow(QMainWindow):
         self.button = QPushButton("Restart")
         self.button.pressed.connect(self.button_pressed)
 
-        self.button_AI_learn = QPushButton("Learn")
+        self.button_AI_learn = QPushButton("AI Learn")
         self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
 
-        self.button_AI_play = QPushButton("Play")
+        self.button_AI_play = QPushButton("AI Play")
         self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
 
-        self.button_AI_test = QPushButton("Test")
+        self.button_AI_test = QPushButton("AI Test")
         self.button_AI_test.pressed.connect(self.button_AI_test_pressed)
 
-        self.button_AI_solve = QPushButton("Solve")
-        self.button_AI_solve.pressed.connect(self.button_solve_pressed)
+        self.button_solve = QPushButton("Solve")
+        self.button_solve.pressed.connect(self.button_solve_pressed)
 
-        self.button2 = QPushButton("RL learn")
-        self.button2.pressed.connect(self.rl_learn)
+        self.button_RL_learn = QPushButton("RL learn")
+        self.button_RL_learn.pressed.connect(self.rl_learn)
 
-        self.button3 = QPushButton("RL play")
-        self.button3.pressed.connect(self.rl_play)
+        self.button_RL_play = QPushButton("RL play")
+        self.button_RL_play.pressed.connect(self.rl_play)
 
         score = QLabel("Score : ")
         time = QLabel("Time : ")
 
-        hb.addWidget(self.button_AI_learn)
-        hb.addWidget(self.button_AI_play)
         hb.addWidget(self.button)
+        hb.addWidget(self.button_solve)
         hb.addWidget(score)
         hb.addWidget(self.score)
         hb.addWidget(time)
         hb.addWidget(self.clock)
-        hb.addWidget(self.button_AI_test)
-        hb.addWidget(self.button_AI_solve)
 
-        hb1.addWidget(self.button2)
-        hb1.addWidget(self.button3)
+        hb1.addWidget(self.button_AI_learn)
+        hb1.addWidget(self.button_AI_play)
+        hb1.addWidget(self.button_AI_test)
+
+        hb2.addWidget(self.button_RL_learn)
+        hb2.addWidget(self.button_RL_play)
 
         vb = QVBoxLayout()
         vb.addLayout(hb)
         vb.addLayout(hb1)
+        vb.addLayout(hb2)
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
@@ -169,7 +173,6 @@ class MainWindow(QMainWindow):
         self.reset_map()
         self.update_status(STATUS_READY)
 
-        # Initialize Agent
         supersmart.setboardsize(self.b_size)
         self.show()
 
@@ -295,9 +298,12 @@ class MainWindow(QMainWindow):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_revealed):
+                    if(tile.get_value()!=-2): # Si start position
                         value_mat[x,y]= tile.get_value()
+                    else:
+                        value_mat[x,y]=0
                 else:
-                    value_mat[x,y]= -8
+                    value_mat[x,y]= -50
         return value_mat
 
     """
@@ -454,7 +460,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(500000) #500000
+        self.train_AI(80000) #500000
 
     """
     Save the model of NN
@@ -473,23 +479,21 @@ class MainWindow(QMainWindow):
     """
     Define the architecture of the neuronal network
     """
-    def set_model(self, n_inputs, n_outputs, episodes):
+    def set_model(self, n_inputs):
         global model
         matrixSize = n_inputs
 
-        # CNN model test
-        num_filters = 32
         filter_size = 2
         pool_size = 1
 
         model = keras.models.Sequential([
-          keras.layers.Conv2D(32, filter_size, input_shape=(matrixSize,matrixSize, 1)),
+          keras.layers.Conv2D(64, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Conv2D(16, filter_size),
+          keras.layers.Conv2D(16, filter_size, activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
-          keras.layers.Dropout(0.2),
+          keras.layers.Dense((matrixSize*matrixSize)*64, activation="relu"),
+          keras.layers.Dropout(0.05),
           keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
           keras.layers.Dropout(0.05),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
@@ -587,7 +591,6 @@ class MainWindow(QMainWindow):
                         self.agent.learn(tile.x + (self.b_size * tile.y), 1, 10, False)
                 """
 
-
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.reset_map()
@@ -602,74 +605,20 @@ class MainWindow(QMainWindow):
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 25
-
-        # get_tiles_value : give the value of each tile on the board
+        episodes = 10
         Xfin = []
         yfin = []
 
-        # Create multiple beginning of game (=episodes) and add them to the input list
-        # TODO: Apprendre des parties complètes pas juste des débuts de game sur base du solver
         print("Generating", datasetSize,"games :")
-
-        # Play solver and keep only win game
-        """
-        nb_win_game = 0
-        while nb_win_game < datasetSize:
-            tile = None
-            Xtmp = []
-            ytmp = []
-            while not self.win():
-                if tile is not None and tile.is_mine and tile.is_revealed:
-                    self.update_status(STATUS_FAILED)
-                    break
-                revealed = self.get_revealed_tiles()
-
-                tmp = list()
-                for item in revealed:
-                    tmp.append(self.get_surrounding(item.x, item.y))
-
-                neighborhoods = [[] for i in range(len(tmp))]
-                for i, neighborhood in enumerate(tmp):
-                    for neighbor in neighborhood:
-                        if not neighbor.is_revealed:
-                            neighborhoods[i].append(neighbor)
-
-                tile = rule_1(revealed, neighborhoods)
-                if tile != None:
-                    tile.flag()
-                    continue
-                tile = rule_2(revealed, neighborhoods)
-                if tile != None:
-                    tile.click()
-                    tile.reveal()
-                    continue
-
-                perimeter = dict.fromkeys(self.get_perimeter(), 0)
-                coords = naive(revealed, neighborhoods, perimeter)
-                item = random.choice(coords)
-                tile = self.grid.itemAtPosition(item[1], item[0]).widget()
-                tile.click()
-                tile.reveal()
-                Xtmp.append(self.get_tiles_revealed_value())
-                ytmp.append(self.get_all_mine())
-            if self.get_status() == STATUS_SUCCESS:
-                nb_win_game += len(Xtmp)
-                print(nb_win_game)
-                Xfin += Xtmp
-                yfin += ytmp
-            self.reset_map()
-        """
 
         nb_board_game = 0
         while nb_board_game < datasetSize:
             while not self.win():
+                #Xfin.append(normalize(self.get_tiles_revealed_value()))
                 Xfin.append(self.get_tiles_revealed_value())
                 yfin.append(self.get_all_mine())
-                #yfin.append(self.get_tiles_value())
                 x = random.randint(0, LEVEL[0]-1)
                 y = random.randint(0, LEVEL[0]-1)
-                #print(x, y)
                 self.AI_turn(x, y)
                 nb_board_game+=1
             self.update_status(STATUS_READY)
@@ -678,7 +627,7 @@ class MainWindow(QMainWindow):
         """
         for i in tqdm(range(0, datasetSize)):
             #QApplication.processEvents()
-            Xfin.append(self.get_tiles_revealed_value())
+            Xfin.append(normalize(self.get_tiles_revealed_value()))
             yfin.append(self.get_all_mine())
             #yfin.append(self.get_tiles_value())
             #x = random.randint(0, LEVEL[0]-1)
@@ -691,18 +640,12 @@ class MainWindow(QMainWindow):
 
         # Train the model with all the game in the input list
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
-        self.set_model(n_inputs, n_inputs, episodes)
+        self.set_model(n_inputs)
 
-        #seed = 7
-        #np.random.seed(seed)
         X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
-
-        #es = EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=0.01, patience=episodes)
 
         #self.save_model(model)
 
-
-        print("SIZE X TRAIN", X_train.shape)
         X_train = X_train.reshape((X_train.shape[0], 8, 8, 1))
         print("SIZE X TRAIN", X_train.shape)
 
@@ -730,9 +673,6 @@ class MainWindow(QMainWindow):
         plt.legend(['train', 'test'], loc='upper left')
         plt.show()
 
-        # 0.0811249986290931 (10000 20 relu relu sigmoid)
-        # 0.0488750003278255 (10000 20 relu relu relu)
-        # 0.0823125019669532 (10000 20 relu sigmoid sigmoid)
 
     """
     Code execute to test the prediction made by the model
@@ -751,6 +691,7 @@ class MainWindow(QMainWindow):
             while not self.win():
 
                 QApplication.processEvents()
+                #testX = np.array([normalize(self.get_tiles_revealed_value())])
                 testX = np.array([self.get_tiles_revealed_value()])
 
                 # CNN model
@@ -819,13 +760,13 @@ class MainWindow(QMainWindow):
         #self.load_model()
 
         CURRENT_REVEALED = self.get_pos_of_revealed()
+        #testX = np.array([normalize(self.get_tiles_revealed_value())])
         testX = np.array([self.get_tiles_revealed_value()])
-
+        print(testX)
         # For CNN model
         test_x = np.array(testX[0].transpose())
         test_x = test_x.reshape(1, 8, 8, 1)
-        print(test_x.shape)
-        print(test_x)
+
         yhat = model.predict(test_x)
 
         # Given the current board the model predict the prob of mine with yhat
