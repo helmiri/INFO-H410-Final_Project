@@ -487,7 +487,7 @@ class MainWindow(QMainWindow):
         pool_size = 1
 
         model = keras.models.Sequential([
-          keras.layers.Conv2D(64, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
+          keras.layers.Conv2D(100, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Conv2D(24, filter_size, activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
@@ -495,7 +495,7 @@ class MainWindow(QMainWindow):
           keras.layers.Dense((matrixSize*matrixSize)*64, activation="relu"),
           keras.layers.Dropout(0.025),
           keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
-          keras.layers.Dropout(0.01),
+          keras.layers.Dropout(0.025),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
