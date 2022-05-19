@@ -55,7 +55,7 @@ class AI:
         minval = np.amin(prob_to_evaluate)
 
         # TODO : test
-        if(minval > 0.3):
+        if(minval > 0.4):
             return None, None
 
         index = np.where(prob_to_evaluate == np.amin(prob_to_evaluate))
