@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import ndarray,random,max,maximum,where
+from numpy import random,maximum
 
 
 class QAgent:
@@ -12,26 +12,27 @@ class QAgent:
 
         no gamma because immediate reward
         """
-        self.q_table = np.zeros((num_states,2))
-        #print(self.q_table)
+        self.q_table = []
+        #print(self.q_table[0][0])
         self.learning_rate = learning_rate
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
         self.epsilon_max = epsilon_max
         self.epsilon = epsilon_max
 
-    def greedy_action(self, observation: int):
+    def greedy_action(self, observation: list):
         """
         Return the greedy action.
 
         :param observation: The observation.
         :return: The action.
         """
-        max_value = max(self.q_table[observation, :])
-        action = where(self.q_table[observation, :] == max_value)
-        return action[0][0]
+        index = self.get_index(observation)
+        max_value = max(self.q_table[index][1:])
+        action = self.q_table[index].index(max_value,0,3)
+        return action
 
-    def act(self, observation: int, training: bool):
+    def act(self, observation: list, training: bool):
         """
         Return the action.
 
@@ -41,14 +42,20 @@ class QAgent:
         :return: The action.
         """
         if training:
+            #state not in Q-table  when training-> add in Q-table
+            if not any(observation in x for x in self.q_table):
+                self.q_table.append([observation,0,0])
             exp_prob = random.random()
             if exp_prob < self.epsilon: #explore
-                action = random.randint(0,2)
+                action = random.randint(1,3)
                 return action
+        #ignore undiscovered states when NOT training
+        elif not any(observation in x for x in self.q_table):
+            return -1
         #greedy action
         return self.greedy_action(observation)
 
-    def learn(self, obs: int, act: int, rew: float, done: bool):
+    def learn(self, obs: list, act: int, rew: float, done: bool):
         """
         Update the Q-Value.
 
@@ -56,6 +63,18 @@ class QAgent:
         :param act: The action.
         :param rew: The reward.
         """
-        self.q_table[obs, act] = self.q_table[obs, act] + self.learning_rate * (rew - self.q_table[obs, act])
+        index = self.get_index(obs)
+        self.q_table[index][act] = self.q_table[index][act] + self.learning_rate * (rew - self.q_table[index][act])
         if done:    #update exploration rate if episode done
             self.epsilon = maximum(self.epsilon * self.epsilon_decay, self.epsilon_min)
+
+    def get_index(self, obs: list):
+        """
+        Find index of the observation in the Q-table
+
+        :param obs: The observation.
+        :return: The index of the observation in the Q-table.
+        """
+        for i,x in enumerate(self.q_table):
+            if obs in x:
+                return i

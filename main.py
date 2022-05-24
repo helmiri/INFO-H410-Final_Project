@@ -23,6 +23,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize
 from tensorflow import keras
 
+import pickle
 import random
 import time
 import numpy as np
@@ -90,6 +91,7 @@ class MainWindow(QMainWindow):
         #self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
         #self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
 
+        self.agent = None
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
@@ -523,23 +525,30 @@ class MainWindow(QMainWindow):
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
 
+    def rl_save(self):
+        with open('model/q_agent_config.pickle', 'wb') as config_agent:
+            pickle.dump(self.agent, config_agent)
+
     def rl_learn(self):
         alpha = 0.1
         epsilon_max = 0.9
         epsilon_min = 0.1
         epsilon_decay = 0.99
 
-        #action : 0 = click ; 1 = flag ; 2 = ignore
+        #action : 1 = click ;  2 = ignore
         self.agent = QAgent(self.b_size*self.b_size, alpha, epsilon_max, epsilon_min, epsilon_decay)
-        self.run_episode(True)
+        self.run_episode(True, 700000)
+        self.rl_save()
 
     def rl_play(self):
+        if self.agent == None:
+            with open('model/q_agent_config.pickle', 'rb') as config_agent:
+                self.agent = pickle.load(config_agent)
         self.reset_map()
-        self.run_episode(False)
+        self.run_episode(False, 1000)
 
-    def run_episode(self, training):
+    def run_episode(self, training, nb_game):
         wins = 0
-        nb_game = 1000
         for episode in range(nb_game):
             while not self.win():
                 QApplication.processEvents()
@@ -548,38 +557,55 @@ class MainWindow(QMainWindow):
                 x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
                 tile = self.grid.itemAtPosition(y, x).widget()
                 #print(tile.x + (self.b_size * tile.y))
-                action = self.agent.act(tile.x + (self.b_size * tile.y), training)
-                print(action)
+
+                #get a 3x3 cluster around the tile
+                cluster = self.get_surrounding(x, y)
+
+                #get current state of the cluster
+                for i in range(len(cluster)):
+                    if cluster[i].is_revealed:
+                        cluster[i] = cluster[i].get_value()
+                    else:
+                        cluster[i] = -3
+                #print(cluster)
+
+
+                action = self.agent.act(cluster, training)
+                #print("action : ", action)
 
                 #tile clicked
-                if action == 0:
+                if action == 1:
                     tile.click()
                     tile.reveal()
-                #tile flagged
+                #ignore
+                elif action == -1:
+                    continue
+                #action == 2 -> tile ingored
                 """
+                #tile flagged
                 elif action == 1:
                     tile.flag()
                 """
-                #action == 2 -> tile ingored
+
 
                 #click + not mine
                 if not tile.is_mine and tile.is_revealed:
                     if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 0, 1, False)
+                        self.agent.learn(cluster, 1, 1, False)
                 #click + mine
                 elif tile.is_mine and tile.is_revealed:
                     if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 0, -1, True)
+                        self.agent.learn(cluster, 1, -1, True)
                     self.update_status(STATUS_FAILED)
                     break
                 #ignore + not mine
                 elif not tile.is_mine and not tile.is_revealed:
                     if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, -0.1, False)
+                        self.agent.learn(cluster, 2, -1, False)
                 #ignore + mine
                 elif tile.is_mine and not tile.is_revealed:
                     if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, 5, False)
+                        self.agent.learn(cluster, 2, 1, False)
                 """
                 #flag + not mine
                 elif not tile.is_mine and tile.is_flagged:
@@ -594,9 +620,10 @@ class MainWindow(QMainWindow):
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.reset_map()
-            print("WINS/TOTAL: " + str(wins) + "/" + str(episode+1))
+            if (episode%1000) == 0:
+                print("WINS/TOTAL: " + str(wins) + "/" + str(episode+1))
         print("WIN RATE:" + str(wins/nb_game*100))
-        print(self.agent.q_table)
+        #print(self.agent.q_table)
 
 
     """
