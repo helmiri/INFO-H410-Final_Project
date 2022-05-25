@@ -60,6 +60,8 @@ class Tile(QWidget):
         self.adjacent_n = 0
         self.is_revealed = False
         self.is_flagged = False
+        self.count = 0
+        self.marked = False
         self.update()
 
 
@@ -73,6 +75,11 @@ class Tile(QWidget):
         if self.is_revealed:
             color = self.palette().color(QPalette.Background)
             outer, inner = color, color
+        elif self.marked:
+            if self.type == 1:
+                outer, inner = QColor('#1261b5'), QColor('#1261b5')
+            else:
+                outer, inner = QColor('#b51248'), QColor('#b51248')
         else:
             outer, inner = QColor('#878787'), QColor('#202020')
         p.fillRect(r, QBrush(inner))
@@ -143,6 +150,15 @@ class Tile(QWidget):
 
             #else:
             #self.score += 1
+    def mark(self):
+        self.count += 1
+        return self.count > self.get_value()
+
+    def unmark(self):
+        self.count -= 1
+
+    def add_neighbors(self, neighbors):
+        self.neighbors = set(neighbors)
 
     def __hash__(self):
         return hash((self.x, self.y))
@@ -150,6 +166,8 @@ class Tile(QWidget):
     def __eq__(self, other):
         if other is None:
             return False
+        if isinstance(other, Tile):
+            return (self.x, self.y) == (other.x, other.y)
         return (self.x, self.y) == (other[0], other[1])
 
     def __ne__(self, other):
@@ -157,3 +175,17 @@ class Tile(QWidget):
 
     def __str__(self):
         return"({0}, {1})".format(self.x, self.y)
+
+    def __lt__(self, other):
+        if self.x < other.x or (self.x == other.x and self.y < other.y):
+            return True
+        return False
+
+    def mark(self, type):
+        self.marked = True
+        self.type = type
+        self.update()
+
+    def unmark(self):
+        self.marked = False
+        self.update()

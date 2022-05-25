@@ -5,7 +5,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from sklearn import neighbors
 from ai import AI
-from solver import naive, rule_1, rule_2
+from solver import naive, rule3, rule_1, rule_2
 from tile import Tile
 from numpy import asarray
 
@@ -27,14 +27,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-#print(device_lib.list_local_devices())
+# print(device_lib.list_local_devices())
 # 2.10.0.dev20220427
 
-#To add a package to the project : poetry add 'package_name'
+# To add a package to the project : poetry add 'package_name'
 
-#===============================================================================
+# ===============================================================================
 # GLOBAL VARIABLES
-#===============================================================================
+# ===============================================================================
 global SCORE, CURRENT_REVEALED, model, LEVEL
 SCORE = 0
 CURRENT_REVEALED = []
@@ -43,7 +43,7 @@ LEVELS = [
     (16, 40),
     (24, 99)
 ]
-LEVEL = LEVELS[0]
+LEVEL = LEVELS[1]
 
 model = Sequential()
 supersmart = AI()
@@ -71,18 +71,20 @@ STATUS_PLAYING = 1
 STATUS_FAILED = 2
 STATUS_SUCCESS = 3
 
-#===============================================================================
+# ===============================================================================
 # GUI AND AI
-#===============================================================================
+# ===============================================================================
 """
 Main class use for GUI and the AI managment
 """
+
+
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         global LEVEL
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setWindowTitle("Minesweeper AI")
-        self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint);
+        self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowIcon(QIcon("./images/bomb.png"))
         #self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         #self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
@@ -167,6 +169,7 @@ class MainWindow(QMainWindow):
     """
     Init the board and connect signal of each tile to the correct function
     """
+
     def init_map(self):
         global LEVEL, CURRENT_REVEALED, SCORE
         # Add positions to the map
@@ -182,6 +185,7 @@ class MainWindow(QMainWindow):
     """
     Reset all the board, choose random positions for mine and give new value to each tiles
     """
+
     def reset_map(self):
         global SCORE, CURRENT_REVEALED
         # Clear all mine positions
@@ -194,7 +198,8 @@ class MainWindow(QMainWindow):
         # Add mines to the positions
         positions = []
         while len(positions) < self.n_mines:
-            x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
+            x, y = random.randint(
+                0, self.b_size - 1), random.randint(0, self.b_size - 1)
             if (x, y) not in positions:
                 tile = self.grid.itemAtPosition(y, x).widget()
                 tile.is_mine = True
@@ -211,10 +216,12 @@ class MainWindow(QMainWindow):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 tile.adjacent_n = get_adjacency_n(x, y)
+                tile.neighbors = self.get_surrounding(tile.x, tile.y)
 
         # Place starting marker
         while True:
-            x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
+            x, y = random.randint(
+                0, self.b_size - 1), random.randint(0, self.b_size - 1)
             tile = self.grid.itemAtPosition(y, x).widget()
             # We don't want to start on a mine.
             if (x, y) not in positions:
@@ -224,13 +231,14 @@ class MainWindow(QMainWindow):
                 for tile in self.get_surrounding(x, y):
                     if not tile.is_mine:
                         tile.click()
-                        if((x,y) not in CURRENT_REVEALED):
-                            CURRENT_REVEALED.append((x,y))
+                        if((x, y) not in CURRENT_REVEALED):
+                            CURRENT_REVEALED.append((x, y))
                 break
 
     """
     Return all the tiles around a give tile at position (x,y)
     """
+
     def get_surrounding(self, x, y):
         positions = []
         for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
@@ -241,6 +249,7 @@ class MainWindow(QMainWindow):
     """
     Allow us to get the x,y positions of all the tiles around the set of revealed tiles
     """
+
     def get_perimeter(self):
         CURRENT_REVEALED = self.get_pos_of_revealed()
         perimeter = set()
@@ -252,9 +261,21 @@ class MainWindow(QMainWindow):
 
         return list(perimeter)
 
+    def get_perim_as_tile(self):
+        CURRENT_REVEALED = self.get_pos_of_revealed()
+        perimeter = set()
+        for pos in CURRENT_REVEALED:
+            neighb_tmp = self.get_surrounding(pos[0], pos[1])
+            for elem in neighb_tmp:
+                if elem not in CURRENT_REVEALED:
+                    perimeter.add(elem)
+
+        return list(perimeter)
+
     """
     Get the perimeter og the reveal mine with 1 if it's a mine 0 otherwise
     """
+
     def get_bombe_peri(self, peri):
         peri_bomb = []
         for pos in peri:
@@ -268,32 +289,34 @@ class MainWindow(QMainWindow):
     """
     Return the matrix of all the tile's value on the board
     """
+
     def get_tiles_value(self):
-        value_mat = np.zeros((self.b_size,self.b_size))
+        value_mat = np.zeros((self.b_size, self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
-                value_mat[x,y]= tile.get_value()
+                value_mat[x, y] = tile.get_value()
         return value_mat
-
 
     """
     Return the matrix of the tile's value known on the board
     """
+
     def get_tiles_revealed_value(self):
-        value_mat = np.zeros((self.b_size,self.b_size))
+        value_mat = np.zeros((self.b_size, self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_revealed):
-                        value_mat[x,y]= tile.get_value()
+                    value_mat[x, y] = tile.get_value()
                 else:
-                    value_mat[x,y]= -8
+                    value_mat[x, y] = -8
         return value_mat
 
     """
     Return a list of all the tile's positions
     """
+
     def get_pos_of_revealed(self):
         lst_revealed = []
         for x in range(0, self.b_size):
@@ -306,6 +329,7 @@ class MainWindow(QMainWindow):
     """
     Return the matrix of all the tile's positions
     """
+
     def get_revealed_tiles(self):
         lst_revealed = []
         for x in range(0, self.b_size):
@@ -318,20 +342,22 @@ class MainWindow(QMainWindow):
     """
     Return the matrix with the positions of mine, 1 if it's a mine, 0 otherwise
     """
+
     def get_all_mine(self):
-        mines = np.zeros((self.b_size,self.b_size))
+        mines = np.zeros((self.b_size, self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_mine):
-                    mines[x,y]= 1
+                    mines[x, y] = 1
                 else:
-                    mines[x,y]= 0
+                    mines[x, y] = 0
         return mines
 
     """
     Reset all the global value and the board
     """
+
     def reset(self):
         global SCORE
         SCORE = 0
@@ -342,6 +368,7 @@ class MainWindow(QMainWindow):
     """
     Reveal all the tiles on the board
     """
+
     def reveal_map(self):
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -351,6 +378,7 @@ class MainWindow(QMainWindow):
     """
     Reveal all the tile which are not mine around a position (x,y)
     """
+
     def expand_reveal(self, x, y):
         for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
             for yi in range(max(0, y - 1), min(y + 2, self.b_size)):
@@ -360,6 +388,7 @@ class MainWindow(QMainWindow):
     """
     Start the timer in at the first click and update the current status
     """
+
     def trigger_start(self, *args):
         if self.status != STATUS_PLAYING:
             self.update_status(STATUS_PLAYING)
@@ -367,18 +396,21 @@ class MainWindow(QMainWindow):
     """
     Update the current status of the player
     """
+
     def update_status(self, status):
         self.status = status
 
     """
     Return the current status
     """
+
     def get_status(self):
         return self.status
 
     """
     Update the in game timer value and the score
     """
+
     def update_timer(self):
         global SCORE
         self.score.setText(str(SCORE))
@@ -389,6 +421,7 @@ class MainWindow(QMainWindow):
     """
     Code execute when the game emit the 'ohno' signal which and the game and restart a new one
     """
+
     def game_over(self):
         global SCORE
         print("SCORE : ", SCORE)
@@ -400,6 +433,7 @@ class MainWindow(QMainWindow):
     """
     Code execute when the user click on the restart button
     """
+
     def button_pressed(self):
         global SCORE
         SCORE = 0
@@ -423,7 +457,7 @@ class MainWindow(QMainWindow):
         if self.get_status() == STATUS_FAILED:
             return True
 
-        if len(self.get_revealed_tiles()) == (LEVEL[0] ** 2 ) - LEVEL[1]:
+        if len(self.get_revealed_tiles()) == (LEVEL[0] ** 2) - LEVEL[1]:
             cond = True
             self.update_status(STATUS_SUCCESS)
         elif self.get_status() == STATUS_FAILED:
@@ -434,6 +468,7 @@ class MainWindow(QMainWindow):
     """
     Reveal all the mine on theb board
     """
+
     def reveal_mines(self):
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -444,26 +479,30 @@ class MainWindow(QMainWindow):
     """
     Code execute when the user click on the learn AI button
     """
+
     def button_AI_learn_pressed(self):
-        self.train_AI(700000) #500000
+        self.train_AI(700000)  # 500000
 
     """
     Save the model of NN
     """
+
     def save_model(self, model):
         model.save('model')
 
     """
     Load the model of
     """
+
     def load_model(self):
         global model
         model = keras.models.load_model('model')
-        #https://www.tensorflow.org/guide/keras/save_and_serialize
+        # https://www.tensorflow.org/guide/keras/save_and_serialize
 
     """
     Define the architecture of the neuronal network
     """
+
     def set_model(self, n_inputs, n_outputs, episodes):
         global model
         matrixSize = n_inputs
@@ -483,18 +522,24 @@ class MainWindow(QMainWindow):
         # Best model from now
         """
         model = keras.models.Sequential([
-            keras.layers.Dense((matrixSize*matrixSize)*2, input_shape=(matrixSize,matrixSize), activation="relu"),
+            keras.layers.Dense((matrixSize*matrixSize)*2,
+                               input_shape=(matrixSize, matrixSize), activation="relu"),
             keras.layers.Dropout(0.3),
             keras.layers.Flatten(),
-            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dense((matrixSize*matrixSize) *
+                               4, activation="sigmoid"),
             keras.layers.Dropout(0.2),
-            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dense((matrixSize*matrixSize) *
+                               4, activation="sigmoid"),
             keras.layers.Dropout(0.1),
-            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dense((matrixSize*matrixSize) *
+                               4, activation="sigmoid"),
             keras.layers.Dropout(0.1),
-            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dense((matrixSize*matrixSize) *
+                               4, activation="sigmoid"),
             keras.layers.Dropout(0.1),
-            keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+            keras.layers.Dense((matrixSize*matrixSize) *
+                               4, activation="sigmoid"),
             keras.layers.Dropout(0.1),
             keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
             keras.layers.Reshape((matrixSize, matrixSize))
@@ -516,13 +561,14 @@ class MainWindow(QMainWindow):
         """
 
         #model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
-        model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
+        model.compile(optimizer="adam", loss="mean_squared_error",
+                      metrics=["accuracy"])
         model.summary()
-
 
     """
     Steps to do in order to train the model with all the different game
     """
+
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
@@ -534,7 +580,7 @@ class MainWindow(QMainWindow):
 
         # Create multiple beginning of game (=episodes) and add them to the input list
         # TODO: Apprendre des parties complètes pas juste des débuts de game sur base du solver
-        print("Generating", datasetSize,"games :")
+        print("Generating", datasetSize, "games :")
 
         # Play solver and keep only win game
         """
@@ -590,12 +636,12 @@ class MainWindow(QMainWindow):
             while not self.win():
                 Xfin.append(self.get_tiles_revealed_value())
                 yfin.append(self.get_all_mine())
-                #yfin.append(self.get_tiles_value())
+                # yfin.append(self.get_tiles_value())
                 x = random.randint(0, LEVEL[0]-1)
                 y = random.randint(0, LEVEL[0]-1)
                 #print(x, y)
                 self.AI_turn(x, y)
-                nb_board_game+=1
+                nb_board_game += 1
             self.update_status(STATUS_READY)
             self.reset()
 
@@ -618,16 +664,17 @@ class MainWindow(QMainWindow):
         self.set_model(n_inputs, n_inputs, episodes)
 
         #seed = 7
-        #np.random.seed(seed)
-        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
+        # np.random.seed(seed)
+        X_train, X_test, Y_train, Y_test = train_test_split(
+            np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
 
         #es = EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=0.01, patience=episodes)
 
-        #self.save_model(model)
-
+        # self.save_model(model)
 
         print("SIZE X TRAIN", X_train.shape)
-        history = model.fit(X_train, Y_train, batch_size=250, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+        history = model.fit(X_train, Y_train, batch_size=250, shuffle=True,
+                            epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
 
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
@@ -656,12 +703,13 @@ class MainWindow(QMainWindow):
     """
     Code execute to test the prediction made by the model
     """
+
     def button_AI_play_pressed(self):
         global SCORE, model
         avg_score = 0
         self.update_status(STATUS_READY)
 
-        #self.load_model()
+        # self.load_model()
 
         nb_test_run = 500
         wins = 0
@@ -675,7 +723,7 @@ class MainWindow(QMainWindow):
                 yhat = model.predict(np.array([testX[0].transpose()]))
 
                 yhat = np.array([yhat[0].transpose()])
-                #print(yhat)
+                # print(yhat)
                 # Give the positions of tile around the revealed tiles
                 peri = self.get_perimeter()
                 CURRENT_REVEALED = self.get_pos_of_revealed()
@@ -688,7 +736,6 @@ class MainWindow(QMainWindow):
 
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
-
 
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
@@ -705,10 +752,10 @@ class MainWindow(QMainWindow):
         print("WIN RATE:" + str(wins/nb_test_run*100))
         print("Avg. score : ", avg_score/nb_test_run)
 
-
     """
     Make the different action of a normal turn in game like it is a human who is playing (click etc)
     """
+
     def AI_turn(self, x, y):
         global SCORE
         tile = self.grid.itemAtPosition(y, x).widget()
@@ -716,8 +763,8 @@ class MainWindow(QMainWindow):
         if(not tile.is_revealed):
             tile.click()
             tile.reveal()
-            #self.show()
-            if tile.is_mine: #GAMEOVER
+            # self.show()
+            if tile.is_mine:  # GAMEOVER
                 tile.ohno.emit()
                 self.update_status(STATUS_FAILED)
             else:
@@ -727,9 +774,10 @@ class MainWindow(QMainWindow):
     """
     Simple function link to a button to test stuff about the AI
     """
+
     def button_AI_test_pressed(self):
         global model
-        #self.load_model()
+        # self.load_model()
 
         CURRENT_REVEALED = self.get_pos_of_revealed()
         testX = np.array([self.get_tiles_revealed_value()])
@@ -763,27 +811,37 @@ class MainWindow(QMainWindow):
     def button_solve_pressed(self):
         wins = 0
         nb_game = 1000
+        max_score = LEVEL[0]*LEVEL[0] - LEVEL[1]
+        previous = 0
         for episode in range(nb_game):
             tile = None
+            SCORE = 0
             while not self.win():
+                revealed = self.get_revealed_tiles()
+                SCORE = len(revealed)
+                self.score.setText(str(SCORE))
                 QApplication.processEvents()
 
                 if tile is not None and tile.is_mine and tile.is_revealed:
                     self.update_status(STATUS_FAILED)
                     break
-                #time.sleep(0.15)
-                revealed = self.get_revealed_tiles()
+                # time.sleep(0.15)
 
                 tmp = list()
                 for item in revealed:
                     tmp.append(self.get_surrounding(item.x, item.y))
 
+                # Filter unneeded
                 neighborhoods = [[] for i in range(len(tmp))]
                 for i, neighborhood in enumerate(tmp):
                     for neighbor in neighborhood:
                         if not neighbor.is_revealed:
                             neighborhoods[i].append(neighbor)
 
+                # revealed = [tile for i, tile in enumerate(
+                #     revealed) if neighborhoods[i] != []]
+                # neighborhoods = [
+                #     neighborhood for neighborhood in neighborhoods if neighborhood != []]
                 tile = rule_1(revealed, neighborhoods)
                 if tile != None:
                     tile.flag()
@@ -794,16 +852,53 @@ class MainWindow(QMainWindow):
                     tile.reveal()
                     continue
 
-                perimeter = dict.fromkeys(self.get_perimeter(), 0)
-                coords = naive(revealed, neighborhoods, perimeter)
-                item = random.choice(coords)
-                tile = self.grid.itemAtPosition(item[1], item[0]).widget()
+                # perimeter_d = dict.fromkeys(self.get_perimeter(), 0)
+                perimeter = self.get_perim_as_tile()
+                final_perimeter = set()
+                for tile in perimeter:
+                    check = False
+                    for neighbor in tile.neighbors:
+                        if not neighbor.is_revealed and not neighbor.is_flagged:
+                            check = True
+                            break
+                    if check:
+                        final_perimeter.add(tile)
+                perimeter_neighbors = set()
+
+                # Preprocess neighboring tiles
+                for tile in perimeter:
+                    surroundings = tile.neighbors
+                    for n_tile in surroundings:
+                        if n_tile.is_revealed:
+                            perimeter_neighbors.add(n_tile)
+
+                tiles = rule3(final_perimeter, perimeter_neighbors)
+                if tiles is None:
+                    tiles = [
+                        tile for tile in perimeter if not tile.is_flagged]
+                tile = random.choice(tiles)
                 tile.click()
                 tile.reveal()
+
+                # tile = rule3(dict(zip(revealed, neighborhoods)),
+                #              perimeter_neighbors)
+                # if tile != None:
+                #     tile.click()
+                #     tile.reveal()
+                # coords = naive(revealed, tmp, perimeter_d)
+                # coords = dict(zip(perimeter, perimeter_neighbors))
+                # item = random.choice(coords)
+                # tile = self.grid.itemAtPosition(item[1], item[0]).widget()
+                # tile.click()
+                # tile.reveal()
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
+            print("WINS/TOTAL: " + str(wins) + "/" + str(episode + 1))
+            print("AVERAGE SCORE/MAX SCORE: {0}/{1}".format(
+                str(round((previous + SCORE) / (episode + 1), 2)), str(max_score)))
+            previous += SCORE
             self.reset_map()
-            print("WINS/TOTAL: " + str(wins) + "/" + str(episode))
+
         print("WIN RATE:" + str(wins/nb_game*100))
 
 
@@ -823,7 +918,8 @@ if __name__ == '__main__':
     palette.setColor(QPalette.Text, QColor(255, 255, 255))
     palette.setColor(QPalette.Button, QColor(53, 53, 53))
     palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-    palette.setColor(QPalette.BrightText, QColor(200, 50, 20)) # Rouge normalement
+    palette.setColor(QPalette.BrightText, QColor(
+        200, 50, 20))  # Rouge normalement
     palette.setColor(QPalette.Link, QColor(42, 130, 218))
     palette.setColor(QPalette.Highlight, QColor(218, 218, 218))
     palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
