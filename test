@@ -1,0 +1,67 @@
+keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
+keras.layers.MaxPooling2D(pool_size=pool_size),
+keras.layers.Conv2D(24, filter_size, activation="selu"),
+keras.layers.Conv2D(128, filter_size, activation="selu"),
+keras.layers.Conv2D(128, filter_size, activation="selu"),
+keras.layers.Conv2D(24, filter_size, activation="selu"),
+keras.layers.MaxPooling2D(pool_size=pool_size),
+keras.layers.Flatten(),
+keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"),
+keras.layers.Dropout(0.025),
+keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
+keras.layers.Dropout(0.025),
+keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
+keras.layers.Reshape((matrixSize, matrixSize))
+self.train_AI(10000) #500000
+Epoch 10/10
+loss: 0.0466 - accuracy: 0.5161 - val_loss: 0.0485 - val_accuracy: 0.5162
+Test loss: 0.04862844944000244
+Test accuracy: 0.5148516297340393
+WIN RATE:17.8%
+Avg. score :  10.038
+
+====================================================
+
+
+self.train_AI(1000000) #500000
+WIN RATE:32.4%
+Avg. score :  12.236
+
+====================================================
+keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
+keras.layers.MaxPooling2D(pool_size=pool_size),
+keras.layers.Conv2D(24, filter_size, activation="selu"),
+keras.layers.Conv2D(64, filter_size, activation="selu"),
+keras.layers.Conv2D(24, filter_size, activation="selu"),
+keras.layers.MaxPooling2D(pool_size=pool_size),
+keras.layers.Flatten(),
+keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"),
+keras.layers.Dropout(0.015),
+keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
+keras.layers.Dropout(0.015),
+keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
+keras.layers.Reshape((matrixSize, matrixSize))
+self.train_AI(10000) #50000
+loss: 0.1211 - accuracy: 0.2227 - val_loss: 0.1177 - val_accuracy: 0.2191
+Test loss: 0.11646706610918045
+Test accuracy: 0.23501498997211456
+
+====================================================
+keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
+keras.layers.MaxPooling2D(pool_size=pool_size),
+keras.layers.Conv2D(64, filter_size, activation="selu"),
+keras.layers.Conv2D(24, filter_size, activation="selu"),
+keras.layers.Conv2D(128, filter_size, activation="selu"),
+keras.layers.Conv2D(24, filter_size, activation="selu"),
+keras.layers.MaxPooling2D(pool_size=pool_size),
+keras.layers.Flatten(),
+keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"),
+keras.layers.Dropout(0.015),
+keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
+keras.layers.Dropout(0.015),
+keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
+keras.layers.Reshape((matrixSize, matrixSize))
+self.train_AI(10000) #50000
+loss: 0.0163 - accuracy: 0.5813 - val_loss: 0.0227 - val_accuracy: 0.5659
+Test loss: 0.022368645295500755
+Test accuracy: 0.5786713361740112

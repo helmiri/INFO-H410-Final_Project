@@ -5,7 +5,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from sklearn import neighbors
 from ai import AI
-from solver import naive, rule3, rule_1, rule_2
+from solver import *
+from rl import QAgent
 from tile import Tile
 from numpy import asarray
 
@@ -19,8 +20,10 @@ from keras.layers import MaxPooling2D
 from tensorflow.python.client import device_lib
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import normalize
 from tensorflow import keras
 
+import pickle
 import random
 import time
 import numpy as np
@@ -49,12 +52,9 @@ model = Sequential()
 supersmart = AI()
 seed = 7
 np.random.seed(seed)
+random.seed(seed)
 
 
-IMG_BOMB = QImage("./images/bomb.png")
-IMG_FLAG = QImage("./images/flag.png")
-IMG_START = QImage("./images/rocket.png")
-IMG_CLOCK = QImage("./images/clock-select.png")
 NUM_COLORS = {
     0: QColor('#4CAF50'),
     1: QColor('#00f3ff'),
@@ -90,13 +90,16 @@ class MainWindow(QMainWindow):
         #self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         screen_size = QApplication.primaryScreen().availableSize()
         tilesize = screen_size.height()//20
-        self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
-        self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
+        #self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
+        #self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
 
+        self.agent = None
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
         hb = QHBoxLayout()
+        hb1 = QHBoxLayout()
+        hb2 = QHBoxLayout()
 
         self.score = QLabel()
         self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
@@ -120,33 +123,45 @@ class MainWindow(QMainWindow):
         self.button = QPushButton("Restart")
         self.button.pressed.connect(self.button_pressed)
 
-        self.button_AI_learn = QPushButton("Learn")
+        self.button_AI_learn = QPushButton("CNN Learn")
         self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
 
-        self.button_AI_play = QPushButton("Play")
+        self.button_AI_play = QPushButton("CNN Play")
         self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
 
-        self.button_AI_test = QPushButton("Test")
+        self.button_AI_test = QPushButton("CNN Test")
         self.button_AI_test.pressed.connect(self.button_AI_test_pressed)
 
-        self.button_AI_solve = QPushButton("Solve")
-        self.button_AI_solve.pressed.connect(self.button_solve_pressed)
+        self.button_solve = QPushButton("Solve")
+        self.button_solve.pressed.connect(self.button_solve_pressed)
+
+        self.button_RL_learn = QPushButton("RL learn")
+        self.button_RL_learn.pressed.connect(self.rl_learn)
+
+        self.button_RL_play = QPushButton("RL play")
+        self.button_RL_play.pressed.connect(self.rl_play)
 
         score = QLabel("Score : ")
         time = QLabel("Time : ")
 
-        hb.addWidget(self.button_AI_learn)
-        hb.addWidget(self.button_AI_play)
         hb.addWidget(self.button)
+        hb.addWidget(self.button_solve)
         hb.addWidget(score)
         hb.addWidget(self.score)
         hb.addWidget(time)
         hb.addWidget(self.clock)
-        hb.addWidget(self.button_AI_test)
-        hb.addWidget(self.button_AI_solve)
+
+        hb1.addWidget(self.button_AI_learn)
+        hb1.addWidget(self.button_AI_play)
+        hb1.addWidget(self.button_AI_test)
+
+        hb2.addWidget(self.button_RL_learn)
+        hb2.addWidget(self.button_RL_play)
 
         vb = QVBoxLayout()
         vb.addLayout(hb)
+        vb.addLayout(hb1)
+        vb.addLayout(hb2)
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
@@ -162,7 +177,6 @@ class MainWindow(QMainWindow):
         self.reset_map()
         self.update_status(STATUS_READY)
 
-        # Initialize Agent
         supersmart.setboardsize(self.b_size)
         self.show()
 
@@ -308,9 +322,12 @@ class MainWindow(QMainWindow):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_revealed):
-                    value_mat[x, y] = tile.get_value()
+                    if(tile.get_value()!=-2): # Si start position
+                        value_mat[x,y]= tile.get_value()
+                    else:
+                        value_mat[x,y]=0
                 else:
-                    value_mat[x, y] = -8
+                    value_mat[x,y]= -50
         return value_mat
 
     """
@@ -424,7 +441,7 @@ class MainWindow(QMainWindow):
 
     def game_over(self):
         global SCORE
-        print("SCORE : ", SCORE)
+        #print("SCORE : ", SCORE)
         SCORE = 0
         self.reveal_map()
         self.update_status(STATUS_FAILED)
@@ -481,7 +498,7 @@ class MainWindow(QMainWindow):
     """
 
     def button_AI_learn_pressed(self):
-        self.train_AI(700000)  # 500000
+        self.train_AI(10000) #500000
 
     """
     Save the model of NN
@@ -502,24 +519,28 @@ class MainWindow(QMainWindow):
     """
     Define the architecture of the neuronal network
     """
-
-    def set_model(self, n_inputs, n_outputs, episodes):
+    def set_model(self, n_inputs):
         global model
         matrixSize = n_inputs
 
-        #lr_schedule = keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=episodes, decay_rate=0.95)
-        #rmsprop = keras.optimizers.RMSprop(learning_rate=lr_schedule, momentum=0.1)
+        filter_size = 2
+        pool_size = 1
 
-        # CNN model test
-        """
-        model = models.Sequential()
-        model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
-        model.add(layers.MaxPooling2D((2, 2)))
-        model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-        model.add(layers.MaxPooling2D((2, 2)))
-        model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-
-        # Best model from now
+        model = keras.models.Sequential([
+          keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
+          keras.layers.MaxPooling2D(pool_size=pool_size),
+          keras.layers.Conv2D(24, filter_size, activation="selu"),
+          keras.layers.Conv2D(256, filter_size, activation="selu"),
+          keras.layers.Conv2D(64, filter_size, activation="selu"),
+          keras.layers.MaxPooling2D(pool_size=pool_size),
+          keras.layers.Flatten(),
+          keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"), # 40 ok
+          #keras.layers.Dropout(0.025),
+          keras.layers.Dense((matrixSize*matrixSize)*24, activation="sigmoid"),
+          #keras.layers.Dropout(0.025),
+          keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
+          keras.layers.Reshape((matrixSize, matrixSize))
+        ])
         """
         model = keras.models.Sequential([
             keras.layers.Dense((matrixSize*matrixSize)*2,
@@ -544,111 +565,151 @@ class MainWindow(QMainWindow):
             keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
             keras.layers.Reshape((matrixSize, matrixSize))
         ])
-
-        # First model
-        """
-        model = keras.models.Sequential([
-                keras.layers.Dense((matrixSize*matrixSize), input_shape=(matrixSize,matrixSize), activation="relu"),
-                keras.layers.Dropout(0.1),
-                keras.layers.Flatten(),
-                keras.layers.Dense((matrixSize*matrixSize)/4, activation="relu"),
-                keras.layers.Dropout(0.01),
-                keras.layers.Dense((matrixSize*matrixSize)/2, activation="relu"),
-                keras.layers.Dropout(0.01),
-                keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
-                keras.layers.Reshape((matrixSize, matrixSize))
-        ])
         """
 
-        #model.compile(optimizer=rmsprop,loss="mean_squared_error", metrics=["accuracy"])
-        model.compile(optimizer="adam", loss="mean_squared_error",
-                      metrics=["accuracy"])
+
+        model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
+
+    """
+    Save the trained RL agent
+    """
+    def rl_save(self):
+        with open('model/q_agent_config.pickle', 'wb') as config_agent:
+            pickle.dump(self.agent, config_agent)
+
+    """
+    Create a new RL agent and train it
+    """
+    def rl_learn(self):
+        alpha = 0.1
+        epsilon_max = 0.9
+        epsilon_min = 0.1
+        epsilon_decay = 0.99
+
+        #action : 1 = click ;  2 = ignore
+        self.agent = QAgent(alpha, epsilon_max, epsilon_min, epsilon_decay)
+        self.run_episode(True, 1000)
+        self.rl_save()
+
+    """
+    Play using the trained RL agent
+    """
+    def rl_play(self):
+        #load a trained agent if no new agent has been created
+        if self.agent == None:
+            with open('model/q_agent_config_700k_run.pickle', 'rb') as config_agent:
+                self.agent = pickle.load(config_agent)
+        self.reset_map()
+        self.run_episode(False, 1000)
+
+    """
+    Play the game with a RL agent
+    """
+    def run_episode(self, training, nb_game):
+        nb_states = []
+        nb_wins = []
+        wins = 0
+        if training:
+            description = 'Training progress'
+        else:
+            description = 'Testing progress'
+        for episode in tqdm(range(nb_game), desc = description):
+            while not self.win():
+                QApplication.processEvents()
+
+                #select a random tile
+                x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
+                tile = self.grid.itemAtPosition(y, x).widget()
+                #print(x,y)
+
+                #get a 3x3 cluster around the tile
+                cluster = self.get_surrounding(x, y)
+
+                #get current state of the cluster
+                for i in range(len(cluster)):
+                    if cluster[i].is_revealed:
+                        cluster[i] = cluster[i].get_value()
+                    else:
+                        cluster[i] = -3
+
+                #get the agent action
+                action = self.agent.act(cluster, training)
+                #print("action : ", action)
+
+                #tile clicked
+                if action == 1:
+                    tile.click()
+                    tile.reveal()
+                #action == 2 -> tile ingored
+
+                #click + not mine
+                if not tile.is_mine and tile.is_revealed:
+                    if training:
+                        self.agent.learn(cluster, 1, 1, False)
+                #click + mine
+                elif tile.is_mine and tile.is_revealed:
+                    if training:
+                        self.agent.learn(cluster, 1, -1, True)
+                    self.update_status(STATUS_FAILED)
+                    break
+                #ignore + not mine
+                elif not tile.is_mine and not tile.is_revealed:
+                    if training:
+                        self.agent.learn(cluster, 2, -1, False)
+                #ignore + mine
+                elif tile.is_mine and not tile.is_revealed:
+                    if training:
+                        self.agent.learn(cluster, 2, 1, False)
+
+            if self.get_status() == STATUS_SUCCESS:
+                wins += 1
+            self.reset_map()
+            if (episode%100) == 0:
+                nb_states.append(len(self.agent.q_table))
+                nb_wins.append(wins)
+            if False:
+                print("WINS/TOTAL: " + str(wins) + "/" + str(episode+1))
+        print("WIN RATE:" + str(wins/nb_game*100))
+        print(nb_states)
+        print(nb_wins)
+        #print(len(self.agent.q_table))
+
 
     """
     Steps to do in order to train the model with all the different game
     """
-
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0
-        episodes = 100
-
-        # get_tiles_value : give the value of each tile on the board
+        episodes = 10
         Xfin = []
         yfin = []
 
-        # Create multiple beginning of game (=episodes) and add them to the input list
-        # TODO: Apprendre des parties complètes pas juste des débuts de game sur base du solver
-        print("Generating", datasetSize, "games :")
-
-        # Play solver and keep only win game
-        """
-        nb_win_game = 0
-        while nb_win_game < datasetSize:
-            tile = None
-            Xtmp = []
-            ytmp = []
-            while not self.win():
-                if tile is not None and tile.is_mine and tile.is_revealed:
-                    self.update_status(STATUS_FAILED)
-                    break
-                revealed = self.get_revealed_tiles()
-
-                tmp = list()
-                for item in revealed:
-                    tmp.append(self.get_surrounding(item.x, item.y))
-
-                neighborhoods = [[] for i in range(len(tmp))]
-                for i, neighborhood in enumerate(tmp):
-                    for neighbor in neighborhood:
-                        if not neighbor.is_revealed:
-                            neighborhoods[i].append(neighbor)
-
-                tile = rule_1(revealed, neighborhoods)
-                if tile != None:
-                    tile.flag()
-                    continue
-                tile = rule_2(revealed, neighborhoods)
-                if tile != None:
-                    tile.click()
-                    tile.reveal()
-                    continue
-
-                perimeter = dict.fromkeys(self.get_perimeter(), 0)
-                coords = naive(revealed, neighborhoods, perimeter)
-                item = random.choice(coords)
-                tile = self.grid.itemAtPosition(item[1], item[0]).widget()
-                tile.click()
-                tile.reveal()
-                Xtmp.append(self.get_tiles_revealed_value())
-                ytmp.append(self.get_all_mine())
-            if self.get_status() == STATUS_SUCCESS:
-                nb_win_game += len(Xtmp)
-                print(nb_win_game)
-                Xfin += Xtmp
-                yfin += ytmp
-            self.reset_map()
-        """
+        print("Generating", datasetSize,"games :")
 
         nb_board_game = 0
+        pbar = tqdm(total = datasetSize)
         while nb_board_game < datasetSize:
+            nb_temp_game = 0
             while not self.win():
+                #Xfin.append(normalize(self.get_tiles_revealed_value()))
                 Xfin.append(self.get_tiles_revealed_value())
                 yfin.append(self.get_all_mine())
-                # yfin.append(self.get_tiles_value())
                 x = random.randint(0, LEVEL[0]-1)
                 y = random.randint(0, LEVEL[0]-1)
-                #print(x, y)
                 self.AI_turn(x, y)
-                nb_board_game += 1
+                nb_temp_game +=1
+            nb_board_game+= nb_temp_game
             self.update_status(STATUS_READY)
             self.reset()
+            pbar.update(nb_temp_game)
+        pbar.close()
 
         """
         for i in tqdm(range(0, datasetSize)):
             #QApplication.processEvents()
-            Xfin.append(self.get_tiles_revealed_value())
+            Xfin.append(normalize(self.get_tiles_revealed_value()))
             yfin.append(self.get_all_mine())
             #yfin.append(self.get_tiles_value())
             #x = random.randint(0, LEVEL[0]-1)
@@ -661,44 +722,41 @@ class MainWindow(QMainWindow):
 
         # Train the model with all the game in the input list
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
-        self.set_model(n_inputs, n_inputs, episodes)
+        self.set_model(n_inputs)
 
-        #seed = 7
-        # np.random.seed(seed)
-        X_train, X_test, Y_train, Y_test = train_test_split(
-            np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
+        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
 
-        #es = EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=0.01, patience=episodes)
+        #self.save_model(model)
 
-        # self.save_model(model)
-
+        X_train = X_train.reshape((X_train.shape[0], 8, 8, 1))
         print("SIZE X TRAIN", X_train.shape)
-        history = model.fit(X_train, Y_train, batch_size=250, shuffle=True,
-                            epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
 
+        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+
+        X_test = X_test.reshape((X_test.shape[0], 8, 8, 1))
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
-        """
-        plt.plot(history.history['accuracy'])
-        plt.plot(history.history['val_accuracy'])
-        plt.title('model accuracy')
-        plt.ylabel('accuracy')
+        self.plot_AI_acc(history)
+        self.plot_AI_err(history)
+
+    def plot_AI_acc(self, history):
+        plt.plot(history.history['accuracy'], label='accuracy train')
+        plt.plot(history.history['val_accuracy'], label='accuracy test')
+        #plt.title('model accuracy')
+        #plt.ylabel('accuracy')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
-        plt.show()
-        """
-        plt.plot(history.history['loss'])
-        plt.plot(history.history['val_loss'])
-        plt.title('model loss')
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
         plt.show()
 
-        # 0.0811249986290931 (10000 20 relu relu sigmoid)
-        # 0.0488750003278255 (10000 20 relu relu relu)
-        # 0.0823125019669532 (10000 20 relu sigmoid sigmoid)
+    def plot_AI_err(self, history):
+        plt.plot(history.history['loss'], label='error train')
+        plt.plot(history.history['val_loss'], label='error test')
+        #plt.title('model loss')
+        #plt.ylabel('loss')
+        plt.xlabel('epoch')
+        #plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+
 
     """
     Code execute to test the prediction made by the model
@@ -718,9 +776,17 @@ class MainWindow(QMainWindow):
             while not self.win():
 
                 QApplication.processEvents()
+                #testX = np.array([normalize(self.get_tiles_revealed_value())])
                 testX = np.array([self.get_tiles_revealed_value()])
+
+                # CNN model
+                test_x = np.array(testX[0].transpose())
+                test_x = test_x.reshape(1, 8, 8, 1)
+                yhat = model.predict(test_x)
+
+
                 # Given the current board the model predict the prob of mine with yhat
-                yhat = model.predict(np.array([testX[0].transpose()]))
+                #yhat = model.predict(np.array([testX[0].transpose()]))
 
                 yhat = np.array([yhat[0].transpose()])
                 # print(yhat)
@@ -749,7 +815,7 @@ class MainWindow(QMainWindow):
             self.reset()
             supersmart.reset()
 
-        print("WIN RATE:" + str(wins/nb_test_run*100))
+        print("WIN RATE:" + str(wins/nb_test_run*100)+ "%")
         print("Avg. score : ", avg_score/nb_test_run)
 
     """
@@ -780,12 +846,16 @@ class MainWindow(QMainWindow):
         # self.load_model()
 
         CURRENT_REVEALED = self.get_pos_of_revealed()
+        #testX = np.array([normalize(self.get_tiles_revealed_value())])
         testX = np.array([self.get_tiles_revealed_value()])
+        print(testX)
+        # For CNN model
+        test_x = np.array(testX[0].transpose())
+        test_x = test_x.reshape(1, 8, 8, 1)
 
-        print(np.array([testX[0].transpose()]))
+        yhat = model.predict(test_x)
 
         # Given the current board the model predict the prob of mine with yhat
-        yhat = model.predict(np.array([testX[0].transpose()]))
         #yhat = model.predict(np.array([testX[0].transpose()]))
         #yhat = np.array([yhat[0].transpose()])
 
@@ -806,7 +876,7 @@ class MainWindow(QMainWindow):
         print(x, y)
 
         #OLDSCORE = SCORE
-        #self.AI_turn(x, y)
+        #self.AI_turn(x, y)        #self.AI_turn(x, y)
 
     def button_solve_pressed(self):
         wins = 0
