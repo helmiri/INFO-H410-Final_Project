@@ -29,12 +29,12 @@ class AI:
 
         if(x == None):
             (x,y) = self.getMinProbMine(probmine)
+            print("global minimum")
 
         self.positions_revealed.append((x,y))
         return (x,y)
 
     def flag(self, probmine, peri, current_revealed):
-        # Comment ?
         #(x,y) = self.getMaxProbPeri(peri, probmine)
         (x,y) = self.getMaxProbMine(probmine)
         self.positions_flaged.append((x,y))
@@ -51,11 +51,11 @@ class AI:
                 prob_to_evaluate.append(probmine[0][pos[0], pos[1]])
         minval = np.amin(prob_to_evaluate)
 
-        """
+
         # TODO : test
         if(minval > 0.4):
             return None, None
-        """
+
 
         index = np.where(prob_to_evaluate == np.amin(prob_to_evaluate))
         return peri[index[0][0]][0], peri[index[0][0]][1]

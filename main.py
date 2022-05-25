@@ -46,7 +46,7 @@ LEVELS = [
     (16, 40),
     (24, 99)
 ]
-LEVEL = LEVELS[1]
+LEVEL = LEVELS[0]
 
 model = Sequential()
 supersmart = AI()
@@ -327,7 +327,7 @@ class MainWindow(QMainWindow):
                     else:
                         value_mat[x,y]=0
                 else:
-                    value_mat[x,y]= -50
+                    value_mat[x,y]= -10
         return value_mat
 
     """
@@ -498,14 +498,14 @@ class MainWindow(QMainWindow):
     """
 
     def button_AI_learn_pressed(self):
-        self.train_AI(10000) #500000
+        self.train_AI(100000) #500000
 
     """
     Save the model of NN
     """
 
     def save_model(self, model):
-        model.save('model')
+        model.save('model/model')
 
     """
     Load the model of
@@ -513,8 +513,7 @@ class MainWindow(QMainWindow):
 
     def load_model(self):
         global model
-        model = keras.models.load_model('model')
-        # https://www.tensorflow.org/guide/keras/save_and_serialize
+        model = keras.models.load_model('model/model')
 
     """
     Define the architecture of the neuronal network
@@ -527,17 +526,17 @@ class MainWindow(QMainWindow):
         pool_size = 1
 
         model = keras.models.Sequential([
-          keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
+          keras.layers.Conv2D(128, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Conv2D(24, filter_size, activation="selu"),
-          keras.layers.Conv2D(256, filter_size, activation="selu"),
-          keras.layers.Conv2D(64, filter_size, activation="selu"),
+          keras.layers.Conv2D(40, filter_size, activation="relu"),
+          keras.layers.Conv2D(128, filter_size, activation="relu"),
+          keras.layers.Conv2D(40, filter_size, activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"), # 40 ok
-          #keras.layers.Dropout(0.025),
-          keras.layers.Dense((matrixSize*matrixSize)*24, activation="sigmoid"),
-          #keras.layers.Dropout(0.025),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"), # 40 ok
+          keras.layers.Dropout(0.015),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"),
+          keras.layers.Dropout(0.015),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
@@ -696,8 +695,14 @@ class MainWindow(QMainWindow):
                 #Xfin.append(normalize(self.get_tiles_revealed_value()))
                 Xfin.append(self.get_tiles_revealed_value())
                 yfin.append(self.get_all_mine())
+
                 x = random.randint(0, LEVEL[0]-1)
                 y = random.randint(0, LEVEL[0]-1)
+                # To play winning game only, no opti but ok because of 8x8 board
+                while(self.grid.itemAtPosition(y, x).widget().is_mine):
+                    x = random.randint(0, LEVEL[0]-1)
+                    y = random.randint(0, LEVEL[0]-1)
+
                 self.AI_turn(x, y)
                 nb_temp_game +=1
             nb_board_game+= nb_temp_game
@@ -729,7 +734,6 @@ class MainWindow(QMainWindow):
         #self.save_model(model)
 
         X_train = X_train.reshape((X_train.shape[0], 8, 8, 1))
-        print("SIZE X TRAIN", X_train.shape)
 
         history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
 
@@ -854,7 +858,6 @@ class MainWindow(QMainWindow):
         test_x = test_x.reshape(1, 8, 8, 1)
 
         yhat = model.predict(test_x)
-
         # Given the current board the model predict the prob of mine with yhat
         #yhat = model.predict(np.array([testX[0].transpose()]))
         #yhat = np.array([yhat[0].transpose()])
@@ -862,9 +865,9 @@ class MainWindow(QMainWindow):
         ytrue = self.get_all_mine()
         ytrue = np.array([ytrue.transpose()])
 
-        print(yhat)
-        print(ytrue)
-        #plt.imshow(ytrue, cmap='hot', interpolation='nearest')
+        #print(yhat)
+        #print(ytrue)
+
         plt.imshow(yhat[0], cmap='hot', interpolation='nearest')
         plt.show()
 
@@ -873,10 +876,14 @@ class MainWindow(QMainWindow):
 
         # Choose the best position to click given the prediction and the perimeter
         x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
-        print(x, y)
+        mtile = self.grid.itemAtPosition(y, x).widget()
+        mtile.mark(1)
+        mtile.click()
 
-        #OLDSCORE = SCORE
-        #self.AI_turn(x, y)        #self.AI_turn(x, y)
+        fx, fy = supersmart.flag(yhat, peri, CURRENT_REVEALED)
+        ftile = self.grid.itemAtPosition(fy, fx).widget()
+        ftile.flag()
+
 
     def button_solve_pressed(self):
         wins = 0
