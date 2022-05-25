@@ -24,12 +24,9 @@ class AI:
         self.positions_flaged = []
 
     def act(self, probmine, peri, current_revealed):
-        #(x,y) = self.getMinProbMine(probmine)
-        #self.positions_revealed.append((x,y))
-        #return (x,y)
-
         # Get prob minimum of mine in the perimeter
         (x,y) = self.getMinProbPeri(peri, probmine, current_revealed)
+
         if(x == None):
             (x,y) = self.getMinProbMine(probmine)
 
@@ -54,9 +51,11 @@ class AI:
                 prob_to_evaluate.append(probmine[0][pos[0], pos[1]])
         minval = np.amin(prob_to_evaluate)
 
+        """
         # TODO : test
         if(minval > 0.4):
             return None, None
+        """
 
         index = np.where(prob_to_evaluate == np.amin(prob_to_evaluate))
         return peri[index[0][0]][0], peri[index[0][0]][1]

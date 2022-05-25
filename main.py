@@ -121,13 +121,13 @@ class MainWindow(QMainWindow):
         self.button = QPushButton("Restart")
         self.button.pressed.connect(self.button_pressed)
 
-        self.button_AI_learn = QPushButton("AI Learn")
+        self.button_AI_learn = QPushButton("CNN Learn")
         self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
 
-        self.button_AI_play = QPushButton("AI Play")
+        self.button_AI_play = QPushButton("CNN Play")
         self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
 
-        self.button_AI_test = QPushButton("AI Test")
+        self.button_AI_test = QPushButton("CNN Test")
         self.button_AI_test.pressed.connect(self.button_AI_test_pressed)
 
         self.button_solve = QPushButton("Solve")
@@ -408,7 +408,7 @@ class MainWindow(QMainWindow):
     """
     def game_over(self):
         global SCORE
-        print("SCORE : ", SCORE)
+        #print("SCORE : ", SCORE)
         SCORE = 0
         self.reveal_map()
         self.update_status(STATUS_FAILED)
@@ -462,7 +462,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(100000) #500000
+        self.train_AI(10000) #500000
 
     """
     Save the model of NN
@@ -489,15 +489,17 @@ class MainWindow(QMainWindow):
         pool_size = 1
 
         model = keras.models.Sequential([
-          keras.layers.Conv2D(100, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
+          keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Conv2D(24, filter_size, activation="relu"),
+          keras.layers.Conv2D(24, filter_size, activation="selu"),
+          keras.layers.Conv2D(256, filter_size, activation="selu"),
+          keras.layers.Conv2D(64, filter_size, activation="selu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*64, activation="relu"),
-          keras.layers.Dropout(0.025),
-          keras.layers.Dense((matrixSize*matrixSize)*32, activation="sigmoid"),
-          keras.layers.Dropout(0.025),
+          keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"), # 40 ok
+          #keras.layers.Dropout(0.025),
+          keras.layers.Dense((matrixSize*matrixSize)*24, activation="sigmoid"),
+          #keras.layers.Dropout(0.025),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
@@ -639,7 +641,9 @@ class MainWindow(QMainWindow):
         print("Generating", datasetSize,"games :")
 
         nb_board_game = 0
+        pbar = tqdm(total = datasetSize)
         while nb_board_game < datasetSize:
+            nb_temp_game = 0
             while not self.win():
                 #Xfin.append(normalize(self.get_tiles_revealed_value()))
                 Xfin.append(self.get_tiles_revealed_value())
@@ -647,9 +651,12 @@ class MainWindow(QMainWindow):
                 x = random.randint(0, LEVEL[0]-1)
                 y = random.randint(0, LEVEL[0]-1)
                 self.AI_turn(x, y)
-                nb_board_game+=1
+                nb_temp_game +=1
+            nb_board_game+= nb_temp_game
             self.update_status(STATUS_READY)
             self.reset()
+            pbar.update(nb_temp_game)
+        pbar.close()
 
         """
         for i in tqdm(range(0, datasetSize)):
@@ -682,22 +689,24 @@ class MainWindow(QMainWindow):
         score = model.evaluate(X_test, Y_test, verbose=0)
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
+        self.plot_AI_acc(history)
+        self.plot_AI_err(history)
 
-        """
-        plt.plot(history.history['accuracy'])
-        plt.plot(history.history['val_accuracy'])
-        plt.title('model accuracy')
-        plt.ylabel('accuracy')
+    def plot_AI_acc(self, history):
+        plt.plot(history.history['accuracy'], label='accuracy train')
+        plt.plot(history.history['val_accuracy'], label='accuracy test')
+        #plt.title('model accuracy')
+        #plt.ylabel('accuracy')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
         plt.show()
-        """
-        plt.plot(history.history['loss'])
-        plt.plot(history.history['val_loss'])
-        plt.title('model loss')
-        plt.ylabel('loss')
+
+    def plot_AI_err(self, history):
+        plt.plot(history.history['loss'], label='error train')
+        plt.plot(history.history['val_loss'], label='error test')
+        #plt.title('model loss')
+        #plt.ylabel('loss')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
+        #plt.legend(['train', 'test'], loc='upper left')
         plt.show()
 
 
