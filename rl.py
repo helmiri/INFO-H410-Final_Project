@@ -3,7 +3,7 @@ from numpy import random,maximum
 
 
 class QAgent:
-    def __init__(self, num_states: int, learning_rate: float, epsilon_max: float = None, epsilon_min: float = None, epsilon_decay: float = None):
+    def __init__(self, learning_rate: float, epsilon_max: float = None, epsilon_min: float = None, epsilon_decay: float = None):
         """
         :param num_actions: Number of actions.
         :param epsilon_max: The maximum epsilon of epsilon-greedy.
@@ -13,7 +13,6 @@ class QAgent:
         no gamma because immediate reward
         """
         self.q_table = []
-        #print(self.q_table[0][0])
         self.learning_rate = learning_rate
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
@@ -42,16 +41,16 @@ class QAgent:
         :return: The action.
         """
         if training:
-            #state not in Q-table  when training-> add in Q-table
+            #state not in Q-table when training -> add in Q-table
             if not any(observation in x for x in self.q_table):
                 self.q_table.append([observation,0,0])
             exp_prob = random.random()
             if exp_prob < self.epsilon: #explore
                 action = random.randint(1,3)
                 return action
-        #ignore undiscovered states when NOT training
+        #undiscovered states -> click but no learning
         elif not any(observation in x for x in self.q_table):
-            return -1
+            return 1
         #greedy action
         return self.greedy_action(observation)
 

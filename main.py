@@ -527,10 +527,16 @@ class MainWindow(QMainWindow):
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
 
+    """
+    Save the trained RL agent
+    """
     def rl_save(self):
         with open('model/q_agent_config.pickle', 'wb') as config_agent:
             pickle.dump(self.agent, config_agent)
 
+    """
+    Create a new RL agent and train it
+    """
     def rl_learn(self):
         alpha = 0.1
         epsilon_max = 0.9
@@ -538,27 +544,40 @@ class MainWindow(QMainWindow):
         epsilon_decay = 0.99
 
         #action : 1 = click ;  2 = ignore
-        self.agent = QAgent(self.b_size*self.b_size, alpha, epsilon_max, epsilon_min, epsilon_decay)
-        self.run_episode(True, 700000)
+        self.agent = QAgent(alpha, epsilon_max, epsilon_min, epsilon_decay)
+        self.run_episode(True, 1000)
         self.rl_save()
 
+    """
+    Play using the trained RL agent
+    """
     def rl_play(self):
+        #load a trained agent if no new agent has been created
         if self.agent == None:
-            with open('model/q_agent_config.pickle', 'rb') as config_agent:
+            with open('model/q_agent_config_700k_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
         self.run_episode(False, 1000)
 
+    """
+    Play the game with a RL agent
+    """
     def run_episode(self, training, nb_game):
+        nb_states = []
+        nb_wins = []
         wins = 0
-        for episode in range(nb_game):
+        if training:
+            description = 'Training progress'
+        else:
+            description = 'Testing progress'
+        for episode in tqdm(range(nb_game), desc = description):
             while not self.win():
                 QApplication.processEvents()
 
-                #random tile
+                #select a random tile
                 x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
                 tile = self.grid.itemAtPosition(y, x).widget()
-                #print(tile.x + (self.b_size * tile.y))
+                #print(x,y)
 
                 #get a 3x3 cluster around the tile
                 cluster = self.get_surrounding(x, y)
@@ -569,9 +588,8 @@ class MainWindow(QMainWindow):
                         cluster[i] = cluster[i].get_value()
                     else:
                         cluster[i] = -3
-                #print(cluster)
 
-
+                #get the agent action
                 action = self.agent.act(cluster, training)
                 #print("action : ", action)
 
@@ -579,16 +597,7 @@ class MainWindow(QMainWindow):
                 if action == 1:
                     tile.click()
                     tile.reveal()
-                #ignore
-                elif action == -1:
-                    continue
                 #action == 2 -> tile ingored
-                """
-                #tile flagged
-                elif action == 1:
-                    tile.flag()
-                """
-
 
                 #click + not mine
                 if not tile.is_mine and tile.is_revealed:
@@ -608,24 +617,19 @@ class MainWindow(QMainWindow):
                 elif tile.is_mine and not tile.is_revealed:
                     if training:
                         self.agent.learn(cluster, 2, 1, False)
-                """
-                #flag + not mine
-                elif not tile.is_mine and tile.is_flagged:
-                    if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, -0.5, False)
-                #flag + mine
-                elif tile.is_mine and tile.is_flagged:
-                    if training:
-                        self.agent.learn(tile.x + (self.b_size * tile.y), 1, 10, False)
-                """
 
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.reset_map()
-            if (episode%1000) == 0:
+            if (episode%100) == 0:
+                nb_states.append(len(self.agent.q_table))
+                nb_wins.append(wins)
+            if False:
                 print("WINS/TOTAL: " + str(wins) + "/" + str(episode+1))
         print("WIN RATE:" + str(wins/nb_game*100))
-        #print(self.agent.q_table)
+        print(nb_states)
+        print(nb_wins)
+        #print(len(self.agent.q_table))
 
 
     """
