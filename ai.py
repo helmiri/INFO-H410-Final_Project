@@ -36,7 +36,8 @@ class AI:
     def flag(self, probmine, peri, current_revealed):
         (x,y) = self.getMaxProbPeri(peri, probmine, current_revealed)
         #(x,y) = self.getMaxProbMine(probmine)
-        self.positions_flaged.append((x,y))
+        if(x != None):
+            self.positions_flaged.append((x,y))
         return (x, y)
 
     """
@@ -63,11 +64,13 @@ class AI:
     """
     def getMaxProbPeri(self, peri, probmine, positions_revealed):
         prob_to_evaluate = {}
+        index = (None, None)
         for pos in peri:
             if((pos[0], pos[1]) not in positions_revealed and (pos[0], pos[1]) not in self.positions_flaged):
             #if((pos[0], pos[1]) not in positions_revealed):
                 prob_to_evaluate[(pos[0], pos[1])] = probmine[0][pos[1], pos[0]]
-        index = max(prob_to_evaluate, key=prob_to_evaluate.get)
+        if(len(prob_to_evaluate)!=0):
+            index = max(prob_to_evaluate, key=prob_to_evaluate.get)
         return index
 
     """

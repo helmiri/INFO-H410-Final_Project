@@ -319,7 +319,7 @@ class MainWindow(QMainWindow):
                     else:
                         value_mat[x,y]= tile.get_value()
                 else:
-                    value_mat[x,y]= -50
+                    value_mat[x,y]= -10
         return value_mat
 
     """
@@ -358,6 +358,21 @@ class MainWindow(QMainWindow):
                     mines[x, y] = 1
                 else:
                     mines[x, y] = 0
+        return mines
+
+    """
+    Return the matrix with the position of mine in the perieter of revealed tiles
+    """
+    def get_mine_peri(self):
+        mines = np.zeros((self.b_size, self.b_size))
+        peri = self.get_perimeter()
+        for pos in peri:
+            x, y = pos[0], pos[1]
+            tile = self.grid.itemAtPosition(y, x).widget()
+            if(tile.is_mine):
+                mines[x, y] = 1
+            else:
+                mines[x, y] = 0
         return mines
 
     """
@@ -476,7 +491,7 @@ class MainWindow(QMainWindow):
     Code execute when the user click on the learn AI button
     """
     def button_AI_learn_pressed(self):
-        self.train_AI(10000) #500000
+        self.train_AI(1000000) #500000
 
     """
     Save the model of NN
@@ -509,10 +524,10 @@ class MainWindow(QMainWindow):
           keras.layers.Conv2D(40, filter_size, activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"), # 40 ok
-          keras.layers.Dropout(0.015),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"),
-          keras.layers.Dropout(0.015),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"), # 40 ok
+          keras.layers.Dropout(0.02),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
+          keras.layers.Dropout(0.02),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
@@ -627,17 +642,16 @@ class MainWindow(QMainWindow):
 
     def create_game(self, datasetSize, type):
         Xfin = []; yfin = []
-        # Better accuracy but strange result during testing
+        # Create set of board game leading to win - Better accuracy but strange result during testing
         if(type==0):
             nb_board_game = 0
-            pbar = tqdm(total = datasetSize)
+            pbar = tqdm(total = datasetSize,  desc = "Creating winning games")
             while nb_board_game < datasetSize:
                 nb_temp_game = 0
                 while not self.win():
-                    #Xfin.append(normalize(self.get_tiles_revealed_value()))
                     Xfin.append(self.get_tiles_revealed_value())
-                    yfin.append(self.get_all_mine())
-
+                    yfin.append(self.get_mine_peri())
+                    #yfin.append(self.get_all_mine())
                     x = random.randint(0, LEVEL[0]-1)
                     y = random.randint(0, LEVEL[0]-1)
                     # To play winning game only, no opti but ok because of 8x8 board
@@ -651,11 +665,12 @@ class MainWindow(QMainWindow):
                 self.reset()
                 pbar.update(nb_temp_game)
             pbar.close()
-        else:
-            for i in tqdm(range(0, datasetSize)):
+        else: # Create set of random board of beginning of game
+            for i in tqdm(range(0, datasetSize),  desc = "Creating random games"):
                 Xfin.append(normalize(self.get_tiles_revealed_value()))
+                yfin.append(self.get_mine_peri())
                 #yfin.append(self.get_all_mine())
-                yfin.append(self.get_tiles_value())
+                #yfin.append(self.get_tiles_value())
                 self.update_status(STATUS_READY)
                 self.reset()
         return Xfin, yfin
@@ -667,7 +682,7 @@ class MainWindow(QMainWindow):
         global SCORE, model
         avg_score = 0; episodes = 5
 
-        Xfin, yfin = self.create_game(datasetSize, 0)
+        Xfin, yfin = self.create_game(datasetSize, 1)
 
         # Train the model with all the game in the input list
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
