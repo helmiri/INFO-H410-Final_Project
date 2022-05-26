@@ -498,7 +498,7 @@ class MainWindow(QMainWindow):
     """
 
     def button_AI_learn_pressed(self):
-        self.train_AI(100000) #500000
+        self.train_AI(500000) #500000
 
     """
     Save the model of NN
