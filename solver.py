@@ -1,6 +1,6 @@
 import itertools
 from queue import Queue
-import time
+from PyQt5.QtCore import QEventLoop, QTimer
 from typing import Dict, Iterable
 
 from tile import Tile
@@ -13,6 +13,8 @@ from tile import Tile
     - neighborhoods: List of lists of values where list i corresponds to the neighborhood of value i in revealed_values
     - perimeter: Perimeter of the revealed values where every key is the coordinates (x, y) of the tile
 """
+
+
 def naive(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]],  perimeter: Dict[Tile, int]):
     for i, neighborhood in enumerate(neighborhoods):
         if revealed_values[i].is_start:
@@ -25,8 +27,9 @@ def naive(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]
                     perimeter[neighborhood[j]] += 1
 
     minval = min(perimeter.values())
-    res = [k for k, v in perimeter.items() if v==minval]
+    res = [k for k, v in perimeter.items() if v == minval]
     return res
+
 
 def generate_bomb_placements(neighborhood_size: int, num_bombs: int):
     for bomb_popsitions in itertools.combinations(range(neighborhood_size), num_bombs):
@@ -35,9 +38,12 @@ def generate_bomb_placements(neighborhood_size: int, num_bombs: int):
             temp[i] = 1
         yield temp
 
+
 """
     If number of hidden tiles in the neighborhood equals the value of the tile, flag all tiles surrounding it as bombs.
 """
+
+
 def rule_1(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]]):
     for i, neighborhood in enumerate(neighborhoods):
         length = len(neighborhood)
@@ -53,9 +59,12 @@ def rule_1(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile
                     return tile
     return None
 
+
 """
     If the number of flagged tiles in the neighborhood equals the value of the tile, all hidden tiles in the neighborhood are safe
 """
+
+
 def rule_2(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]]):
     for i, neighborhood in enumerate(neighborhoods):
         flags = 0
@@ -72,6 +81,8 @@ def rule_2(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile
 """
     Check validity of placements
 """
+
+
 def placement_check(placement, neighborhood):
     for i, neighbor in enumerate(neighborhood):
         if placement[i] == 1 and neighbor.is_revealed or neighbor.is_flagged and placement[i] == 0:
@@ -82,6 +93,8 @@ def placement_check(placement, neighborhood):
 """
     Generate and validate mine placements
 """
+
+
 def get_placements(size, value, neighborhood):
     placements = list()
     # Generate mine placements for current tile
@@ -121,6 +134,8 @@ def get_placements(size, value, neighborhood):
 """
     Revealed tiles are wrapped with this class. Allows tracking of how many remaining mines must be placed in its neighborhood
 """
+
+
 class LinkedTile:
     def __init__(self, tile) -> None:
         self.tile = tile
@@ -134,6 +149,7 @@ class LinkedTile:
     """
         Increase mine count
     """
+
     def increase_count(self):
         if self.get_remaining_bombs() == 0:
             return False
@@ -152,6 +168,7 @@ class LinkedTile:
     """
         Remaining mines to be placed in the neighborhood of this tile
     """
+
     def get_remaining_bombs(self):
         flags = 0
         for neighbor in self.tile.neighbors:
@@ -181,6 +198,8 @@ class LinkedTile:
 """
     Binary Tree node
 """
+
+
 class TileTree:
     def __init__(self, value=None, tile=None, parent=None, neighbors=None) -> None:
         self.value = value
@@ -232,6 +251,7 @@ class TileTree:
     """
         Remove unneeded branches. This happens when a mine placement is invalid. The corresponding branch will be removed
     """
+
     def prune(self):
         if self.left is None and self.right is None:
             self.parent.remove_child(self)
@@ -283,6 +303,7 @@ def rule3(perimeter, revealed):
                 perimeter_queue.add(neighbor)
 
         # Create and add nodes to tree -> Convert hidden tiles in perimeter into tree nodes
+        current_queue.clear()
         while len(parent_queue) > 0:
             parent = parent_queue.pop()
             branch_count = 2
@@ -293,7 +314,7 @@ def rule3(perimeter, revealed):
                 new_node = TileTree(value, tile, parent, neighbors)
                 current_queue.add(new_node)
                 parent.add_child(new_node)
-                assert parent.get_left() is new_node or parent.get_right() is new_node
+                new_node.get_tile().unmark()
             root.update_branch_count(branch_count)
 
         removed = set()  # Track removed nodes
@@ -309,6 +330,8 @@ def rule3(perimeter, revealed):
 """
     For each tile, count occurrences where it is a mine
 """
+
+
 def merge_branches(tree):
     nodes = dict()
     queue = Queue()
@@ -323,6 +346,7 @@ def merge_branches(tree):
                 if child not in nodes:
                     nodes[child] = 0
                 nodes[child] += child.get_value()
+    assert len(nodes) > 0
     return nodes
 
     # def rule3(revealed, values):
@@ -409,6 +433,8 @@ def merge_branches(tree):
     For each neighbor in the neighborhood, inform it that a mine has been placed
     - neighbors : LinkedTile list
 """
+
+
 def notify_neighbors(neighbors, operation):
     for neighbor in neighbors:
         if operation == -1:
@@ -429,6 +455,8 @@ def get_revealed_neighbors(tile):
 """
     Calculate remaining mines to be placed around tile
 """
+
+
 def get_remaining(tile):
     neighbors = tile.neighbors
     flags = 0
@@ -443,6 +471,10 @@ def get_remaining(tile):
 
 
 def is_valid(tree, traversed, removed):
+    # Visualization timer
+    loop = QEventLoop()
+    QTimer.singleShot(500, loop.quit)
+    loop.exec_()
     if tree.get_left() is not None:
         # When we go left, we keep track of nodes traversed.
         # if neighborhood - nodes traversed < mines to be placed, invalid placement -> Remove child from tree
