@@ -322,10 +322,10 @@ class MainWindow(QMainWindow):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if(tile.is_revealed):
-                    if(tile.get_value()!=-2): # Si start position
-                        value_mat[x,y]= tile.get_value()
-                    else:
+                    if(tile.get_value()==-2): # Si start position
                         value_mat[x,y]=0
+                    else:
+                        value_mat[x,y]= tile.get_value()
                 else:
                     value_mat[x,y]= -10
         return value_mat
@@ -498,7 +498,7 @@ class MainWindow(QMainWindow):
     """
 
     def button_AI_learn_pressed(self):
-        self.train_AI(500000) #500000
+        self.train_AI(100000) #500000
 
     """
     Save the model of NN
@@ -533,39 +533,13 @@ class MainWindow(QMainWindow):
           keras.layers.Conv2D(40, filter_size, activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"), # 40 ok
-          keras.layers.Dropout(0.015),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"),
-          keras.layers.Dropout(0.015),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"), # 40 ok
+          keras.layers.Dropout(0.15),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
+          keras.layers.Dropout(0.15),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
-        """
-        model = keras.models.Sequential([
-            keras.layers.Dense((matrixSize*matrixSize)*2,
-                               input_shape=(matrixSize, matrixSize), activation="relu"),
-            keras.layers.Dropout(0.3),
-            keras.layers.Flatten(),
-            keras.layers.Dense((matrixSize*matrixSize) *
-                               4, activation="sigmoid"),
-            keras.layers.Dropout(0.2),
-            keras.layers.Dense((matrixSize*matrixSize) *
-                               4, activation="sigmoid"),
-            keras.layers.Dropout(0.1),
-            keras.layers.Dense((matrixSize*matrixSize) *
-                               4, activation="sigmoid"),
-            keras.layers.Dropout(0.1),
-            keras.layers.Dense((matrixSize*matrixSize) *
-                               4, activation="sigmoid"),
-            keras.layers.Dropout(0.1),
-            keras.layers.Dense((matrixSize*matrixSize) *
-                               4, activation="sigmoid"),
-            keras.layers.Dropout(0.1),
-            keras.layers.Dense(matrixSize*matrixSize, activation="sigmoid"),
-            keras.layers.Reshape((matrixSize, matrixSize))
-        ])
-        """
-
 
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
@@ -680,12 +654,8 @@ class MainWindow(QMainWindow):
     """
     def train_AI(self, datasetSize):
         global SCORE, model
-        avg_score = 0
-        episodes = 10
-        Xfin = []
-        yfin = []
-
-        print("Generating", datasetSize,"games :")
+        avg_score = 0; episodes = 5
+        Xfin = []; yfin = []
 
         nb_board_game = 0
         pbar = tqdm(total = datasetSize)
@@ -702,7 +672,6 @@ class MainWindow(QMainWindow):
                 while(self.grid.itemAtPosition(y, x).widget().is_mine):
                     x = random.randint(0, LEVEL[0]-1)
                     y = random.randint(0, LEVEL[0]-1)
-
                 self.AI_turn(x, y)
                 nb_temp_game +=1
             nb_board_game+= nb_temp_game
@@ -729,16 +698,17 @@ class MainWindow(QMainWindow):
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
         self.set_model(n_inputs)
 
-        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.1, random_state=seed)
+        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.2, random_state=seed)
 
         #self.save_model(model)
 
         X_train = X_train.reshape((X_train.shape[0], 8, 8, 1))
 
-        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.2, validation_data=(X_test, Y_test))
 
         X_test = X_test.reshape((X_test.shape[0], 8, 8, 1))
         score = model.evaluate(X_test, Y_test, verbose=0)
+        print("Number board:", datasetSize)
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
         self.plot_AI_acc(history)
@@ -778,22 +748,15 @@ class MainWindow(QMainWindow):
         for i in range(0, nb_test_run):
             OLDSCORE = 0
             while not self.win():
-
                 QApplication.processEvents()
                 #testX = np.array([normalize(self.get_tiles_revealed_value())])
                 testX = np.array([self.get_tiles_revealed_value()])
-
-                # CNN model
                 test_x = np.array(testX[0].transpose())
                 test_x = test_x.reshape(1, 8, 8, 1)
                 yhat = model.predict(test_x)
-
-
                 # Given the current board the model predict the prob of mine with yhat
                 #yhat = model.predict(np.array([testX[0].transpose()]))
-
                 yhat = np.array([yhat[0].transpose()])
-                # print(yhat)
                 # Give the positions of tile around the revealed tiles
                 peri = self.get_perimeter()
                 CURRENT_REVEALED = self.get_pos_of_revealed()
@@ -801,18 +764,16 @@ class MainWindow(QMainWindow):
                 x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
                 fx, fy = supersmart.flag(yhat, peri, CURRENT_REVEALED)
                 #print(fx, fy)
-                ftile = self.grid.itemAtPosition(fy, fx).widget()
-                ftile.flag()
-
+                if(fx!=None):
+                    ftile = self.grid.itemAtPosition(fy, fx).widget()
+                    ftile.flag()
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
-
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
                 print("WIN !")
             else:
                 print("LOSE :(")
-            #print("Status : ", self.get_status())
             avg_score += OLDSCORE
             self.update_status(STATUS_READY)
             SCORE = 0
@@ -848,41 +809,42 @@ class MainWindow(QMainWindow):
     def button_AI_test_pressed(self):
         global model
         # self.load_model()
-
         CURRENT_REVEALED = self.get_pos_of_revealed()
         #testX = np.array([normalize(self.get_tiles_revealed_value())])
         testX = np.array([self.get_tiles_revealed_value()])
-        print(testX)
         # For CNN model
         test_x = np.array(testX[0].transpose())
         test_x = test_x.reshape(1, 8, 8, 1)
-
         yhat = model.predict(test_x)
         # Given the current board the model predict the prob of mine with yhat
         #yhat = model.predict(np.array([testX[0].transpose()]))
         #yhat = np.array([yhat[0].transpose()])
-
         ytrue = self.get_all_mine()
         ytrue = np.array([ytrue.transpose()])
-
-        #print(yhat)
-        #print(ytrue)
-
-        plt.imshow(yhat[0], cmap='hot', interpolation='nearest')
-        plt.show()
-
+        self.plot_heatmap(yhat[0])
         # Give the positions of tile around the revealed tiles
         peri = self.get_perimeter()
-
         # Choose the best position to click given the prediction and the perimeter
         x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
         mtile = self.grid.itemAtPosition(y, x).widget()
         mtile.mark(1)
-        mtile.click()
-
         fx, fy = supersmart.flag(yhat, peri, CURRENT_REVEALED)
-        ftile = self.grid.itemAtPosition(fy, fx).widget()
-        ftile.flag()
+        if(fx!=None):
+            ftile = self.grid.itemAtPosition(fy, fx).widget()
+            ftile.flag()
+
+    def plot_heatmap(self, matrix):
+        fig, ax = plt.subplots()
+        im = ax.imshow(matrix)
+        ax.set_xticks(np.arange(len(matrix)))
+        ax.set_yticks(np.arange(len(matrix)))
+        for i in range(len(matrix)):
+            for j in range(len(matrix)):
+                prob = round(float(matrix[i, j]), 3)
+                text = ax.text(j, i, prob ,ha="center", va="center", color="w")
+        ax.set_title("Probability of mine")
+        fig.tight_layout()
+        plt.show()
 
 
     def button_solve_pressed(self):
