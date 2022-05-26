@@ -183,7 +183,6 @@ class MainWindow(QMainWindow):
     """
     Init the board and connect signal of each tile to the correct function
     """
-
     def init_map(self):
         global LEVEL, CURRENT_REVEALED, SCORE
         # Add positions to the map
@@ -199,7 +198,6 @@ class MainWindow(QMainWindow):
     """
     Reset all the board, choose random positions for mine and give new value to each tiles
     """
-
     def reset_map(self):
         global SCORE, CURRENT_REVEALED
         # Clear all mine positions
@@ -252,7 +250,6 @@ class MainWindow(QMainWindow):
     """
     Return all the tiles around a give tile at position (x,y)
     """
-
     def get_surrounding(self, x, y):
         positions = []
         for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
@@ -263,7 +260,6 @@ class MainWindow(QMainWindow):
     """
     Allow us to get the x,y positions of all the tiles around the set of revealed tiles
     """
-
     def get_perimeter(self):
         CURRENT_REVEALED = self.get_pos_of_revealed()
         perimeter = set()
@@ -283,13 +279,11 @@ class MainWindow(QMainWindow):
             for elem in neighb_tmp:
                 if elem not in CURRENT_REVEALED:
                     perimeter.add(elem)
-
         return list(perimeter)
 
     """
     Get the perimeter og the reveal mine with 1 if it's a mine 0 otherwise
     """
-
     def get_bombe_peri(self, peri):
         peri_bomb = []
         for pos in peri:
@@ -303,7 +297,6 @@ class MainWindow(QMainWindow):
     """
     Return the matrix of all the tile's value on the board
     """
-
     def get_tiles_value(self):
         value_mat = np.zeros((self.b_size, self.b_size))
         for x in range(0, self.b_size):
@@ -315,7 +308,6 @@ class MainWindow(QMainWindow):
     """
     Return the matrix of the tile's value known on the board
     """
-
     def get_tiles_revealed_value(self):
         value_mat = np.zeros((self.b_size, self.b_size))
         for x in range(0, self.b_size):
@@ -327,13 +319,12 @@ class MainWindow(QMainWindow):
                     else:
                         value_mat[x,y]= tile.get_value()
                 else:
-                    value_mat[x,y]= -10
+                    value_mat[x,y]= -50
         return value_mat
 
     """
     Return a list of all the tile's positions
     """
-
     def get_pos_of_revealed(self):
         lst_revealed = []
         for x in range(0, self.b_size):
@@ -346,7 +337,6 @@ class MainWindow(QMainWindow):
     """
     Return the matrix of all the tile's positions
     """
-
     def get_revealed_tiles(self):
         lst_revealed = []
         for x in range(0, self.b_size):
@@ -359,7 +349,6 @@ class MainWindow(QMainWindow):
     """
     Return the matrix with the positions of mine, 1 if it's a mine, 0 otherwise
     """
-
     def get_all_mine(self):
         mines = np.zeros((self.b_size, self.b_size))
         for x in range(0, self.b_size):
@@ -374,7 +363,6 @@ class MainWindow(QMainWindow):
     """
     Reset all the global value and the board
     """
-
     def reset(self):
         global SCORE
         SCORE = 0
@@ -385,7 +373,6 @@ class MainWindow(QMainWindow):
     """
     Reveal all the tiles on the board
     """
-
     def reveal_map(self):
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -395,7 +382,6 @@ class MainWindow(QMainWindow):
     """
     Reveal all the tile which are not mine around a position (x,y)
     """
-
     def expand_reveal(self, x, y):
         for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
             for yi in range(max(0, y - 1), min(y + 2, self.b_size)):
@@ -405,7 +391,6 @@ class MainWindow(QMainWindow):
     """
     Start the timer in at the first click and update the current status
     """
-
     def trigger_start(self, *args):
         if self.status != STATUS_PLAYING:
             self.update_status(STATUS_PLAYING)
@@ -413,21 +398,18 @@ class MainWindow(QMainWindow):
     """
     Update the current status of the player
     """
-
     def update_status(self, status):
         self.status = status
 
     """
     Return the current status
     """
-
     def get_status(self):
         return self.status
 
     """
     Update the in game timer value and the score
     """
-
     def update_timer(self):
         global SCORE
         self.score.setText(str(SCORE))
@@ -438,7 +420,6 @@ class MainWindow(QMainWindow):
     """
     Code execute when the game emit the 'ohno' signal which and the game and restart a new one
     """
-
     def game_over(self):
         global SCORE
         #print("SCORE : ", SCORE)
@@ -450,7 +431,6 @@ class MainWindow(QMainWindow):
     """
     Code execute when the user click on the restart button
     """
-
     def button_pressed(self):
         global SCORE
         SCORE = 0
@@ -485,7 +465,6 @@ class MainWindow(QMainWindow):
     """
     Reveal all the mine on theb board
     """
-
     def reveal_mines(self):
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -496,24 +475,21 @@ class MainWindow(QMainWindow):
     """
     Code execute when the user click on the learn AI button
     """
-
     def button_AI_learn_pressed(self):
-        self.train_AI(100000) #500000
+        self.train_AI(10000) #500000
 
     """
     Save the model of NN
     """
-
     def save_model(self, model):
-        model.save('model/model')
+        model.save('model/model_cnn')
 
     """
     Load the model of
     """
-
     def load_model(self):
         global model
-        model = keras.models.load_model('model/model')
+        model = keras.models.load_model('model/model_cnn')
 
     """
     Define the architecture of the neuronal network
@@ -533,10 +509,10 @@ class MainWindow(QMainWindow):
           keras.layers.Conv2D(40, filter_size, activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"), # 40 ok
-          keras.layers.Dropout(0.15),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
-          keras.layers.Dropout(0.15),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"), # 40 ok
+          keras.layers.Dropout(0.015),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"),
+          keras.layers.Dropout(0.015),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
@@ -649,65 +625,62 @@ class MainWindow(QMainWindow):
         #print(len(self.agent.q_table))
 
 
+    def create_game(self, datasetSize, type):
+        Xfin = []; yfin = []
+        # Better accuracy but strange result during testing
+        if(type==0):
+            nb_board_game = 0
+            pbar = tqdm(total = datasetSize)
+            while nb_board_game < datasetSize:
+                nb_temp_game = 0
+                while not self.win():
+                    #Xfin.append(normalize(self.get_tiles_revealed_value()))
+                    Xfin.append(self.get_tiles_revealed_value())
+                    yfin.append(self.get_all_mine())
+
+                    x = random.randint(0, LEVEL[0]-1)
+                    y = random.randint(0, LEVEL[0]-1)
+                    # To play winning game only, no opti but ok because of 8x8 board
+                    while(self.grid.itemAtPosition(y, x).widget().is_mine):
+                        x = random.randint(0, LEVEL[0]-1)
+                        y = random.randint(0, LEVEL[0]-1)
+                    self.AI_turn(x, y)
+                    nb_temp_game +=1
+                nb_board_game+= nb_temp_game
+                self.update_status(STATUS_READY)
+                self.reset()
+                pbar.update(nb_temp_game)
+            pbar.close()
+        else:
+            for i in tqdm(range(0, datasetSize)):
+                Xfin.append(normalize(self.get_tiles_revealed_value()))
+                #yfin.append(self.get_all_mine())
+                yfin.append(self.get_tiles_value())
+                self.update_status(STATUS_READY)
+                self.reset()
+        return Xfin, yfin
+
     """
     Steps to do in order to train the model with all the different game
     """
     def train_AI(self, datasetSize):
         global SCORE, model
         avg_score = 0; episodes = 5
-        Xfin = []; yfin = []
 
-        nb_board_game = 0
-        pbar = tqdm(total = datasetSize)
-        while nb_board_game < datasetSize:
-            nb_temp_game = 0
-            while not self.win():
-                #Xfin.append(normalize(self.get_tiles_revealed_value()))
-                Xfin.append(self.get_tiles_revealed_value())
-                yfin.append(self.get_all_mine())
-
-                x = random.randint(0, LEVEL[0]-1)
-                y = random.randint(0, LEVEL[0]-1)
-                # To play winning game only, no opti but ok because of 8x8 board
-                while(self.grid.itemAtPosition(y, x).widget().is_mine):
-                    x = random.randint(0, LEVEL[0]-1)
-                    y = random.randint(0, LEVEL[0]-1)
-                self.AI_turn(x, y)
-                nb_temp_game +=1
-            nb_board_game+= nb_temp_game
-            self.update_status(STATUS_READY)
-            self.reset()
-            pbar.update(nb_temp_game)
-        pbar.close()
-
-        """
-        for i in tqdm(range(0, datasetSize)):
-            #QApplication.processEvents()
-            Xfin.append(normalize(self.get_tiles_revealed_value()))
-            yfin.append(self.get_all_mine())
-            #yfin.append(self.get_tiles_value())
-            #x = random.randint(0, LEVEL[0]-1)
-            #y = random.randint(0, LEVEL[0]-1)
-            #print(x, y)
-            #self.AI_turn(x, y)
-            self.update_status(STATUS_READY)
-            self.reset()
-        """
+        Xfin, yfin = self.create_game(datasetSize, 0)
 
         # Train the model with all the game in the input list
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
         self.set_model(n_inputs)
-
-        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin), np.array(yfin), test_size=0.2, random_state=seed)
+        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float32"), np.array(yfin, dtype="float32"), test_size=0.1, random_state=seed)
 
         #self.save_model(model)
-
         X_train = X_train.reshape((X_train.shape[0], 8, 8, 1))
-
-        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.2, validation_data=(X_test, Y_test))
-
         X_test = X_test.reshape((X_test.shape[0], 8, 8, 1))
+
+        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
         score = model.evaluate(X_test, Y_test, verbose=0)
+
         print("Number board:", datasetSize)
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
@@ -735,7 +708,6 @@ class MainWindow(QMainWindow):
     """
     Code execute to test the prediction made by the model
     """
-
     def button_AI_play_pressed(self):
         global SCORE, model
         avg_score = 0
@@ -779,14 +751,12 @@ class MainWindow(QMainWindow):
             SCORE = 0
             self.reset()
             supersmart.reset()
-
         print("WIN RATE:" + str(wins/nb_test_run*100)+ "%")
         print("Avg. score : ", avg_score/nb_test_run)
 
     """
     Make the different action of a normal turn in game like it is a human who is playing (click etc)
     """
-
     def AI_turn(self, x, y):
         global SCORE
         tile = self.grid.itemAtPosition(y, x).widget()
@@ -805,7 +775,6 @@ class MainWindow(QMainWindow):
     """
     Simple function link to a button to test stuff about the AI
     """
-
     def button_AI_test_pressed(self):
         global model
         # self.load_model()
@@ -864,8 +833,6 @@ class MainWindow(QMainWindow):
                 if tile is not None and tile.is_mine and tile.is_revealed:
                     self.update_status(STATUS_FAILED)
                     break
-                # time.sleep(0.15)
-
                 tmp = list()
                 for item in revealed:
                     tmp.append(self.get_surrounding(item.x, item.y))
@@ -944,9 +911,7 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     app = QApplication([])
     app.setStyle("Fusion")
-
     QToolTip.setFont(QFont('SansSerif', 5))
-
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(53, 53, 53))
     palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
@@ -957,8 +922,7 @@ if __name__ == '__main__':
     palette.setColor(QPalette.Text, QColor(255, 255, 255))
     palette.setColor(QPalette.Button, QColor(53, 53, 53))
     palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-    palette.setColor(QPalette.BrightText, QColor(
-        200, 50, 20))  # Rouge normalement
+    palette.setColor(QPalette.BrightText, QColor(200, 50, 20)) # Rouge normalement
     palette.setColor(QPalette.Link, QColor(42, 130, 218))
     palette.setColor(QPalette.Highlight, QColor(218, 218, 218))
     palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))

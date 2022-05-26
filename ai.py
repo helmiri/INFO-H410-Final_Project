@@ -30,7 +30,6 @@ class AI:
         if(x == None):
             (x,y) = self.getMinProbMine(probmine)
             print("global minimum")
-
         self.positions_revealed.append((x,y))
         return (x,y)
 
@@ -52,7 +51,7 @@ class AI:
         index = min(prob_to_evaluate, key=prob_to_evaluate.get)
 
         # TODO : test
-        if(min(prob_to_evaluate.values()) > 0.4):
+        if(min(prob_to_evaluate.values()) > 0.3):
             return (None, None)
 
         return index
@@ -85,6 +84,7 @@ class AI:
                     tmp_min = probmine[0][i,j]
                     min_i = i
                     min_j = j
+        print(tmp_min)
         return min_i, min_j
 
     # TODO : rewrite
