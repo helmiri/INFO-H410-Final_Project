@@ -56,7 +56,7 @@ class AI:
         if(min(prob_to_evaluate.values()) > 0.3):
             return (None, None)
         """
-        
+
         return index
 
 
@@ -68,8 +68,8 @@ class AI:
         prob_to_evaluate = {}
         index = (None, None)
         for pos in peri:
-            #if((pos[0], pos[1]) not in positions_revealed and (pos[0], pos[1]) not in self.positions_flaged):
-            if((pos[0], pos[1]) not in positions_revealed):
+            if((pos[0], pos[1]) not in positions_revealed and (pos[0], pos[1]) not in self.positions_flaged):
+            #if((pos[0], pos[1]) not in positions_revealed):
                 prob_to_evaluate[(pos[0], pos[1])] = probmine[0][pos[1], pos[0]]
         if(len(prob_to_evaluate)!=0):
             index = max(prob_to_evaluate, key=prob_to_evaluate.get)

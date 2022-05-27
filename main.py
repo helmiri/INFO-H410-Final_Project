@@ -607,30 +607,30 @@ class MainWindow(QMainWindow):
     Define the architecture of the CNN
     """
     def set_model(self, n_inputs):
-        global model
         matrixSize = n_inputs
 
         filter_size = 2
         pool_size = 1
 
         model = keras.models.Sequential([
-          keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
+          keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Conv2D(40, filter_size, activation="relu"),
-          keras.layers.Conv2D(128, filter_size, activation="relu"),
-          keras.layers.Conv2D(40, filter_size, activation="relu"),
+          keras.layers.Conv2D(40, filter_size, activation="selu"),
+          keras.layers.Conv2D(128, filter_size, activation="selu"),
+          keras.layers.Conv2D(40, filter_size, activation="selu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"), # 40 ok
-          keras.layers.Dropout(0.01),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"), # 40 ok
+          #keras.layers.Dropout(0.01),
           keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
-          keras.layers.Dropout(0.01),
+          #keras.layers.Dropout(0.01),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
 
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
+        return model
 
     """
     Generate different sets of boards
@@ -660,7 +660,7 @@ class MainWindow(QMainWindow):
                 self.reset()
                 pbar.update(nb_temp_game)
             pbar.close()
-        else: # Create set of random board of beginning of game
+        if(type==1): # Create set of random board of beginning of game
             for i in tqdm(range(0, datasetSize),  desc = "Creating random games"):
                 Xfin.append(self.get_tiles_revealed_value())
                 yfin.append(self.get_mine_peri())
@@ -668,29 +668,54 @@ class MainWindow(QMainWindow):
                 #yfin.append(self.get_tiles_value())
                 self.update_status(STATUS_READY)
                 self.reset()
+        if(type==2):
+            nb_board_game = 0
+            pbar = tqdm(total = datasetSize,  desc = "Creating winning games")
+            while nb_board_game < datasetSize:
+                nb_temp_game = 0
+                cnt = 0
+                while not self.win():
+                    if(cnt%10==0):
+                        Xfin.append(self.get_tiles_revealed_value())
+                        yfin.append(self.get_mine_peri())
+                        nb_temp_game +=1
+                    x = random.randint(0, LEVEL[0]-1)
+                    y = random.randint(0, LEVEL[0]-1)
+                    # To play winning game only, no opti but ok because of 8x8 board
+                    while(self.grid.itemAtPosition(y, x).widget().is_mine):
+                        x = random.randint(0, LEVEL[0]-1)
+                        y = random.randint(0, LEVEL[0]-1)
+                    self.AI_turn(x, y)
+                    cnt+=1
+                nb_board_game+= nb_temp_game
+                self.update_status(STATUS_READY)
+                self.reset()
+                pbar.update(nb_temp_game)
+            pbar.close()
+             # TODO ajouter des fin de game en cachant certaine case
         return Xfin, yfin
 
     """
     Steps to do in order to train the model with all the different game
     """
     def button_AI_learn_pressed(self):
-        global SCORE, model
-        avg_score = 0; episodes = 5; datasetSize = 50000
+        global SCORE
+        avg_score = 0; episodes = 5; datasetSize = 1000000
 
-        Xfin, yfin = self.create_game(datasetSize, 0)
+        Xfin, yfin = self.create_game(datasetSize, 2)
 
         # Train the model with all the game in the input list
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
-        self.set_model(n_inputs)
+        model = self.set_model(n_inputs)
         X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float64"), np.array(yfin, dtype="float64"), test_size=0.1, random_state=seed)
-
-        self.save_model(model)
 
         X_train = X_train.reshape((X_train.shape[0], LEVEL[0], LEVEL[0], 1))
         X_test = X_test.reshape((X_test.shape[0], LEVEL[0], LEVEL[0], 1))
 
         history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
         score = model.evaluate(X_test, Y_test, verbose=0)
+
+        self.save_model(model)
 
         print("Number board:", datasetSize)
         print("Test loss:", score[0])
@@ -715,7 +740,7 @@ class MainWindow(QMainWindow):
     Code execute to test the prediction made by the model
     """
     def button_AI_play_pressed(self):
-        global SCORE, model
+        global SCORE
         avg_score = 0
         self.update_status(STATUS_READY)
 
