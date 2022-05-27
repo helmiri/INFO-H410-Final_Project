@@ -319,7 +319,7 @@ class MainWindow(QMainWindow):
                     else:
                         value_mat[x,y]= tile.get_value()
                 else:
-                    value_mat[x,y]= -10
+                    value_mat[x,y]= -1
         return value_mat
 
     """
@@ -488,54 +488,6 @@ class MainWindow(QMainWindow):
                     tile.reveal()
 
     """
-    Code execute when the user click on the learn AI button
-    """
-    def button_AI_learn_pressed(self):
-        self.train_AI(1000000) #500000
-
-    """
-    Save the model of NN
-    """
-    def save_model(self, model):
-        model.save('model/model_cnn')
-
-    """
-    Load the model of
-    """
-    def load_model(self):
-        global model
-        model = keras.models.load_model('model/model_cnn')
-
-    """
-    Define the architecture of the neuronal network
-    """
-    def set_model(self, n_inputs):
-        global model
-        matrixSize = n_inputs
-
-        filter_size = 2
-        pool_size = 1
-
-        model = keras.models.Sequential([
-          keras.layers.Conv2D(128, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
-          keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Conv2D(40, filter_size, activation="relu"),
-          keras.layers.Conv2D(128, filter_size, activation="relu"),
-          keras.layers.Conv2D(40, filter_size, activation="relu"),
-          keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"), # 40 ok
-          keras.layers.Dropout(0.02),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
-          keras.layers.Dropout(0.02),
-          keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
-          keras.layers.Reshape((matrixSize, matrixSize))
-        ])
-
-        model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
-        model.summary()
-
-    """
     Save the trained RL agent
     """
     def rl_save(self):
@@ -639,7 +591,50 @@ class MainWindow(QMainWindow):
         print(nb_wins)
         #print(len(self.agent.q_table))
 
+    """
+    Save the model of CNN
+    """
+    def save_model(self, model):
+        model.save('model/model_cnn')
 
+    """
+    Load the model of CNN
+    """
+    def load_model(self):
+        model = keras.models.load_model('model/model_cnn')
+        return model
+    """
+    Define the architecture of the CNN
+    """
+    def set_model(self, n_inputs):
+        global model
+        matrixSize = n_inputs
+
+        filter_size = 2
+        pool_size = 1
+
+        model = keras.models.Sequential([
+          keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
+          keras.layers.MaxPooling2D(pool_size=pool_size),
+          keras.layers.Conv2D(40, filter_size, activation="relu"),
+          keras.layers.Conv2D(128, filter_size, activation="relu"),
+          keras.layers.Conv2D(40, filter_size, activation="relu"),
+          keras.layers.MaxPooling2D(pool_size=pool_size),
+          keras.layers.Flatten(),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"), # 40 ok
+          keras.layers.Dropout(0.01),
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
+          keras.layers.Dropout(0.01),
+          keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
+          keras.layers.Reshape((matrixSize, matrixSize))
+        ])
+
+        model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
+        model.summary()
+
+    """
+    Generate different sets of boards
+    """
     def create_game(self, datasetSize, type):
         Xfin = []; yfin = []
         # Create set of board game leading to win - Better accuracy but strange result during testing
@@ -667,7 +662,7 @@ class MainWindow(QMainWindow):
             pbar.close()
         else: # Create set of random board of beginning of game
             for i in tqdm(range(0, datasetSize),  desc = "Creating random games"):
-                Xfin.append(normalize(self.get_tiles_revealed_value()))
+                Xfin.append(self.get_tiles_revealed_value())
                 yfin.append(self.get_mine_peri())
                 #yfin.append(self.get_all_mine())
                 #yfin.append(self.get_tiles_value())
@@ -678,20 +673,21 @@ class MainWindow(QMainWindow):
     """
     Steps to do in order to train the model with all the different game
     """
-    def train_AI(self, datasetSize):
+    def button_AI_learn_pressed(self):
         global SCORE, model
-        avg_score = 0; episodes = 5
+        avg_score = 0; episodes = 5; datasetSize = 50000
 
-        Xfin, yfin = self.create_game(datasetSize, 1)
+        Xfin, yfin = self.create_game(datasetSize, 0)
 
         # Train the model with all the game in the input list
         n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
         self.set_model(n_inputs)
-        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float32"), np.array(yfin, dtype="float32"), test_size=0.1, random_state=seed)
+        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float64"), np.array(yfin, dtype="float64"), test_size=0.1, random_state=seed)
 
-        #self.save_model(model)
-        X_train = X_train.reshape((X_train.shape[0], 8, 8, 1))
-        X_test = X_test.reshape((X_test.shape[0], 8, 8, 1))
+        self.save_model(model)
+
+        X_train = X_train.reshape((X_train.shape[0], LEVEL[0], LEVEL[0], 1))
+        X_test = X_test.reshape((X_test.shape[0], LEVEL[0], LEVEL[0], 1))
 
         history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
         score = model.evaluate(X_test, Y_test, verbose=0)
@@ -705,18 +701,13 @@ class MainWindow(QMainWindow):
     def plot_AI_acc(self, history):
         plt.plot(history.history['accuracy'], label='accuracy train')
         plt.plot(history.history['val_accuracy'], label='accuracy test')
-        #plt.title('model accuracy')
-        #plt.ylabel('accuracy')
         plt.xlabel('epoch')
         plt.show()
 
     def plot_AI_err(self, history):
         plt.plot(history.history['loss'], label='error train')
         plt.plot(history.history['val_loss'], label='error test')
-        #plt.title('model loss')
-        #plt.ylabel('loss')
         plt.xlabel('epoch')
-        #plt.legend(['train', 'test'], loc='upper left')
         plt.show()
 
 
@@ -728,7 +719,7 @@ class MainWindow(QMainWindow):
         avg_score = 0
         self.update_status(STATUS_READY)
 
-        # self.load_model()
+        model = self.load_model()
 
         nb_test_run = 500
         wins = 0
@@ -739,18 +730,14 @@ class MainWindow(QMainWindow):
                 #testX = np.array([normalize(self.get_tiles_revealed_value())])
                 testX = np.array([self.get_tiles_revealed_value()])
                 test_x = np.array(testX[0].transpose())
-                test_x = test_x.reshape(1, 8, 8, 1)
+                test_x = test_x.reshape(1, LEVEL[0], LEVEL[0], 1)
                 yhat = model.predict(test_x)
-                # Given the current board the model predict the prob of mine with yhat
-                #yhat = model.predict(np.array([testX[0].transpose()]))
-                yhat = np.array([yhat[0].transpose()])
                 # Give the positions of tile around the revealed tiles
                 peri = self.get_perimeter()
                 CURRENT_REVEALED = self.get_pos_of_revealed()
                 # Choose the best position to click given the prediction and the perimeter
                 x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
                 fx, fy = supersmart.flag(yhat, peri, CURRENT_REVEALED)
-                #print(fx, fy)
                 if(fx!=None):
                     ftile = self.grid.itemAtPosition(fy, fx).widget()
                     ftile.flag()
@@ -775,11 +762,9 @@ class MainWindow(QMainWindow):
     def AI_turn(self, x, y):
         global SCORE
         tile = self.grid.itemAtPosition(y, x).widget()
-        #tile.updatedata(CURRENT_REVEALED, SCORE)
         if(not tile.is_revealed):
             tile.click()
             tile.reveal()
-            # self.show()
             if tile.is_mine:  # GAMEOVER
                 tile.ohno.emit()
                 self.update_status(STATUS_FAILED)
@@ -791,20 +776,16 @@ class MainWindow(QMainWindow):
     Simple function link to a button to test stuff about the AI
     """
     def button_AI_test_pressed(self):
-        global model
-        # self.load_model()
+        #global model
+        model = self.load_model()
+
         CURRENT_REVEALED = self.get_pos_of_revealed()
         #testX = np.array([normalize(self.get_tiles_revealed_value())])
         testX = np.array([self.get_tiles_revealed_value()])
-        # For CNN model
         test_x = np.array(testX[0].transpose())
-        test_x = test_x.reshape(1, 8, 8, 1)
+        test_x = test_x.reshape(1, LEVEL[0], LEVEL[0], 1)
         yhat = model.predict(test_x)
         # Given the current board the model predict the prob of mine with yhat
-        #yhat = model.predict(np.array([testX[0].transpose()]))
-        #yhat = np.array([yhat[0].transpose()])
-        ytrue = self.get_all_mine()
-        ytrue = np.array([ytrue.transpose()])
         self.plot_heatmap(yhat[0])
         # Give the positions of tile around the revealed tiles
         peri = self.get_perimeter()
@@ -816,6 +797,7 @@ class MainWindow(QMainWindow):
         if(fx!=None):
             ftile = self.grid.itemAtPosition(fy, fx).widget()
             ftile.flag()
+        self.win()
 
     def plot_heatmap(self, matrix):
         fig, ax = plt.subplots()
