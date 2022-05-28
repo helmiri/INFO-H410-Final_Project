@@ -483,48 +483,63 @@ def get_remaining(tile):
 
 
 def is_valid(tree, removed):
+    if tree is None:
+        return
     # Visualization timer
     loop = QEventLoop()
     QTimer.singleShot(10, loop.quit)
     loop.exec_()
     # print(tree.get_root_branches())
+    if tree.get_value() is not None:
+        tree.get_tile().mark(tree.get_value())
 
-    if tree.get_left() is not None:
-        # When we go left, we keep track of nodes traversed.
-        # if neighborhood - nodes traversed < mines to be placed, invalid placement -> Remove child from tree
-        left_child = tree.get_left()
-        left_child.get_tile().mark(left_child.get_value())
-        # traversed.add(left_child)
-        # check = True
-        # for neighbor in left_child.get_neighbors():
-        #     tmp = neighbor.get_hidden_neighbors() - traversed
-        #     if len(tmp) == 0:
-        #         if neighbor.get_remaining_bombs() > 0:
-        #             check = False
-        #             break
-        if is_satisfied(left_child):
-            is_valid(left_child, removed)
-        else:
-            tree.remove_child(left_child)
-            removed.add(left_child)
-        # traversed.remove(left_child)
-        left_child.get_tile().unmark()
-    if tree.get_branch_count() == 1:
-        return True
-    if tree.get_right() is not None:
-        # When we go right, we place a mine. Notify neighbors that a mine has been placed on the tile
-        # If it is invalid, remove node.
-        right_child = tree.get_right()
-        right_child.get_tile().mark(right_child.get_value())
-        # if notify_neighbors(right_child.get_neighbors(), 1):
-        if is_satisfied(right_child):
-            is_valid(right_child, removed)
-            # notify_neighbors(right_child.get_neighbors(), -1)
-        else:
-            tree.remove_child(right_child)
-            removed.add(right_child)
-        right_child.get_tile().unmark()
-    return False
+    if tree.get_left() is None and tree.get_right() is None:
+        if not is_satisfied(tree):
+            tree.remove_child(tree)
+            removed.add(tree)
+    else:
+        is_valid(tree.get_left(), removed)
+        is_valid(tree.get_right(), removed)
+
+    if tree.get_value() is not None:
+        tree.get_tile().unmark()
+
+    # if tree.get_left() is not None:
+    #     # When we go left, we keep track of nodes traversed.
+    #     # if neighborhood - nodes traversed < mines to be placed, invalid placement -> Remove child from tree
+    #     left_child = tree.get_left()
+    #     left_child.get_tile().mark(left_child.get_value())
+    #     # traversed.add(left_child)
+    #     # check = True
+    #     # for neighbor in left_child.get_neighbors():
+    #     #     tmp = neighbor.get_hidden_neighbors() - traversed
+    #     #     if len(tmp) == 0:
+    #     #         if neighbor.get_remaining_bombs() > 0:
+    #     #             check = False
+    #     #             break
+    #     if is_satisfied(left_child):
+    #         is_valid(left_child, removed)
+    #     else:
+    #         tree.remove_child(left_child)
+    #         removed.add(left_child)
+    #     # traversed.remove(left_child)
+    #     left_child.get_tile().unmark()
+    # if tree.get_branch_count() == 1:
+    #     return True
+    # if tree.get_right() is not None:
+    #     # When we go right, we place a mine. Notify neighbors that a mine has been placed on the tile
+    #     # If it is invalid, remove node.
+    #     right_child = tree.get_right()
+    #     right_child.get_tile().mark(right_child.get_value())
+    #     # if notify_neighbors(right_child.get_neighbors(), 1):
+    #     if is_satisfied(right_child):
+    #         is_valid(right_child, removed)
+    #         # notify_neighbors(right_child.get_neighbors(), -1)
+    #     else:
+    #         tree.remove_child(right_child)
+    #         removed.add(right_child)
+    #     right_child.get_tile().unmark()
+    # return False
 
 
 def is_satisfied(tree):
