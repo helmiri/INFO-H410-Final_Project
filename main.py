@@ -93,13 +93,15 @@ class MainWindow(QMainWindow):
         #self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
         #self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
 
-        self.agent = None
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
         hb = QHBoxLayout()
         hb1 = QHBoxLayout()
         hb2 = QHBoxLayout()
+
+        self.agent = None
+        self.manual_play = False
 
         self.score = QLabel()
         self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
@@ -195,12 +197,15 @@ class MainWindow(QMainWindow):
                 tile.expandable.connect(self.expand_reveal)
                 tile.ohno.connect(self.game_over)
                 tile.score.connect(self.update_score)
+                tile.manual.connect(self.update_manual)
 
     """
     Reset all the board, choose random positions for mine and give new value to each tiles
     """
     def reset_map(self):
         global SCORE, CURRENT_REVEALED
+
+        self.manual_play = False
         # Clear all mine positions
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -247,6 +252,7 @@ class MainWindow(QMainWindow):
                         if((x, y) not in CURRENT_REVEALED):
                             CURRENT_REVEALED.append((x, y))
                 break
+        self.update_score()
 
     """
     Return all the tiles around a give tile at position (x,y)
@@ -438,14 +444,23 @@ class MainWindow(QMainWindow):
     """
     def update_score(self):
         global SCORE
-        SCORE += 1
+
+        revealed = self.get_revealed_tiles()
+        SCORE = len(revealed)
+
+    """
+    Update the manual play boolean
+    """
+    def update_manual(self):
+        self.manual_play = True
 
     """
     Code execute when the game emit the 'ohno' signal which and the game and restart a new one
     """
     def game_over(self):
         global SCORE
-        print("SCORE : ", SCORE)
+        if self.manual_play:
+            print("SCORE : ", SCORE)
         SCORE = 0
         self.reveal_map()
         self.update_status(STATUS_FAILED)
