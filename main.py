@@ -613,14 +613,14 @@ class MainWindow(QMainWindow):
         pool_size = 1
 
         model = keras.models.Sequential([
-          keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
+          keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Conv2D(40, filter_size, activation="selu"),
-          keras.layers.Conv2D(128, filter_size, activation="selu"),
-          keras.layers.Conv2D(40, filter_size, activation="selu"),
+          keras.layers.Conv2D(40, filter_size, activation="relu"),
+          keras.layers.Conv2D(128, filter_size, activation="relu"),
+          keras.layers.Conv2D(40, filter_size, activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"), # 40 ok
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="relu"), # 40 ok
           #keras.layers.Dropout(0.01),
           keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
           #keras.layers.Dropout(0.01),
@@ -675,7 +675,7 @@ class MainWindow(QMainWindow):
                 nb_temp_game = 0
                 cnt = 0
                 while not self.win():
-                    if(cnt%10==0):
+                    if(cnt%20==0):
                         Xfin.append(self.get_tiles_revealed_value())
                         yfin.append(self.get_mine_peri())
                         nb_temp_game +=1
@@ -700,7 +700,7 @@ class MainWindow(QMainWindow):
     """
     def button_AI_learn_pressed(self):
         global SCORE
-        avg_score = 0; episodes = 5; datasetSize = 1000000
+        avg_score = 0; episodes = 2; datasetSize = 200000
 
         Xfin, yfin = self.create_game(datasetSize, 2)
 
