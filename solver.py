@@ -234,9 +234,9 @@ def is_valid(tree, removed):
         tree.get_tile().mark(tree.get_value())
 
     if tree.get_left() is None and tree.get_right() is None:
-        #loop = QEventLoop()
-        #QTimer.singleShot(10, loop.quit)
-        #loop.exec_()
+        loop = QEventLoop()
+        QTimer.singleShot(1, loop.quit)
+        loop.exec_()
         if not is_satisfied(tree):
             tree.remove_child(tree)
             removed.add(tree)
