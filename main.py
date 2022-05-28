@@ -505,7 +505,7 @@ class MainWindow(QMainWindow):
 
         #action : 1 = click ;  2 = ignore
         self.agent = QAgent(alpha, epsilon_max, epsilon_min, epsilon_decay)
-        self.run_episode(True, 1000)
+        self.run_episode(True, 500000)
         self.rl_save()
 
     """
@@ -514,10 +514,10 @@ class MainWindow(QMainWindow):
     def rl_play(self):
         #load a trained agent if no new agent has been created
         if self.agent == None:
-            with open('model/q_agent_config_700k_run.pickle', 'rb') as config_agent:
+            with open('model/q_agent.pickle_1M_run', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
-        self.run_episode(False, 1000)
+        self.run_episode(False, 10)
 
     """
     Play the game with a RL agent
@@ -581,14 +581,12 @@ class MainWindow(QMainWindow):
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.reset_map()
-            if (episode%100) == 0:
+            if (episode%10000) == 0:
                 nb_states.append(len(self.agent.q_table))
                 nb_wins.append(wins)
-            if False:
-                print("WINS/TOTAL: " + str(wins) + "/" + str(episode+1))
         print("WIN RATE:" + str(wins/nb_game*100))
-        print(nb_states)
-        print(nb_wins)
+        #print(nb_states)
+        #print(nb_wins)
         #print(len(self.agent.q_table))
 
     """
