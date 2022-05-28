@@ -48,9 +48,9 @@ class QAgent:
             if exp_prob < self.epsilon: #explore
                 action = random.randint(1,3)
                 return action
-        #undiscovered states -> click but no learning
+        #ignore undiscovered states when NOT training
         elif not any(observation in x for x in self.q_table):
-            return 1
+            return -1
         #greedy action
         return self.greedy_action(observation)
 

@@ -93,13 +93,15 @@ class MainWindow(QMainWindow):
         #self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
         #self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
 
-        self.agent = None
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
         hb = QHBoxLayout()
         hb1 = QHBoxLayout()
         hb2 = QHBoxLayout()
+
+        self.agent = None
+        self.manual_play = False
 
         self.score = QLabel()
         self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
@@ -194,12 +196,16 @@ class MainWindow(QMainWindow):
                 tile.clicked.connect(self.trigger_start)
                 tile.expandable.connect(self.expand_reveal)
                 tile.ohno.connect(self.game_over)
+                tile.score.connect(self.update_score)
+                tile.manual.connect(self.update_manual)
 
     """
     Reset all the board, choose random positions for mine and give new value to each tiles
     """
     def reset_map(self):
         global SCORE, CURRENT_REVEALED
+
+        self.manual_play = False
         # Clear all mine positions
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -246,6 +252,7 @@ class MainWindow(QMainWindow):
                         if((x, y) not in CURRENT_REVEALED):
                             CURRENT_REVEALED.append((x, y))
                 break
+        self.update_score()
 
     """
     Return all the tiles around a give tile at position (x,y)
@@ -433,11 +440,27 @@ class MainWindow(QMainWindow):
             self.clock.setText("%03d" % n_secs)
 
     """
+    Update the score
+    """
+    def update_score(self):
+        global SCORE
+
+        revealed = self.get_revealed_tiles()
+        SCORE = len(revealed)
+
+    """
+    Update the manual play boolean
+    """
+    def update_manual(self):
+        self.manual_play = True
+
+    """
     Code execute when the game emit the 'ohno' signal which and the game and restart a new one
     """
     def game_over(self):
         global SCORE
-        #print("SCORE : ", SCORE)
+        if self.manual_play:
+            print("SCORE : ", SCORE)
         SCORE = 0
         self.reveal_map()
         self.update_status(STATUS_FAILED)
@@ -505,7 +528,7 @@ class MainWindow(QMainWindow):
 
         #action : 1 = click ;  2 = ignore
         self.agent = QAgent(alpha, epsilon_max, epsilon_min, epsilon_decay)
-        self.run_episode(True, 1000)
+        self.run_episode(True, 1000000)
         self.rl_save()
 
     """
@@ -514,7 +537,7 @@ class MainWindow(QMainWindow):
     def rl_play(self):
         #load a trained agent if no new agent has been created
         if self.agent == None:
-            with open('model/q_agent_config_700k_run.pickle', 'rb') as config_agent:
+            with open('model/q_agent_config_1M_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
         self.run_episode(False, 1000)
@@ -531,13 +554,22 @@ class MainWindow(QMainWindow):
         else:
             description = 'Testing progress'
         for episode in tqdm(range(nb_game), desc = description):
+            unproductive_moves = 0
             while not self.win():
                 QApplication.processEvents()
+
+                #force game over after more than 200 unproductive moves
+                if unproductive_moves > 200:
+                    self.update_status(STATUS_FAILED)
+                    break
 
                 #select a random tile
                 x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
                 tile = self.grid.itemAtPosition(y, x).widget()
-                #print(x,y)
+
+                #tile has been already picked
+                if tile.is_revealed:
+                    unproductive_moves += 1
 
                 #get a 3x3 cluster around the tile
                 cluster = self.get_surrounding(x, y)
@@ -557,7 +589,11 @@ class MainWindow(QMainWindow):
                 if action == 1:
                     tile.click()
                     tile.reveal()
-                #action == 2 -> tile ingored
+                #action == 2 -> tile ignored
+
+                #skip
+                if action == -1:
+                    continue
 
                 #click + not mine
                 if not tile.is_mine and tile.is_revealed:
@@ -581,14 +617,12 @@ class MainWindow(QMainWindow):
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.reset_map()
-            if (episode%100) == 0:
+            if (episode%10000) == 0:
                 nb_states.append(len(self.agent.q_table))
                 nb_wins.append(wins)
-            if False:
-                print("WINS/TOTAL: " + str(wins) + "/" + str(episode+1))
         print("WIN RATE:" + str(wins/nb_game*100))
-        print(nb_states)
-        print(nb_wins)
+        #print(nb_states)
+        #print(nb_wins)
         #print(len(self.agent.q_table))
 
     """

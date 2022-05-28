@@ -36,6 +36,8 @@ class Tile(QWidget):
     expandable = pyqtSignal(int, int)
     clicked = pyqtSignal()
     ohno = pyqtSignal()
+    score = pyqtSignal()
+    manual = pyqtSignal()
 
     """
     Initialize the board, choose the size base on the LEVELS selected
@@ -140,15 +142,15 @@ class Tile(QWidget):
     Handle the mouse action on a tile
     """
     def mouseReleaseEvent(self, e):
+        self.manual.emit()
         if (e.button() == Qt.RightButton and not self.is_revealed):
             self.flag()
         elif (e.button() == Qt.LeftButton):
             self.click()
             if self.is_mine:
                 self.ohno.emit()
-
-            #else:
-            #self.score += 1
+            else:
+                self.score.emit()
 
     def get_mark(self):
         return self.type
