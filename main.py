@@ -505,7 +505,7 @@ class MainWindow(QMainWindow):
 
         #action : 1 = click ;  2 = ignore
         self.agent = QAgent(alpha, epsilon_max, epsilon_min, epsilon_decay)
-        self.run_episode(True, 500000)
+        self.run_episode(True, 1000000)
         self.rl_save()
 
     """
@@ -514,10 +514,10 @@ class MainWindow(QMainWindow):
     def rl_play(self):
         #load a trained agent if no new agent has been created
         if self.agent == None:
-            with open('model/q_agent.pickle_1M_run', 'rb') as config_agent:
+            with open('model/q_agent_config_1M_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
-        self.run_episode(False, 10)
+        self.run_episode(False, 1000)
 
     """
     Play the game with a RL agent
@@ -531,13 +531,22 @@ class MainWindow(QMainWindow):
         else:
             description = 'Testing progress'
         for episode in tqdm(range(nb_game), desc = description):
+            unproductive_moves = 0
             while not self.win():
                 QApplication.processEvents()
+
+                #force game over after more than 200 unproductive moves
+                if unproductive_moves > 200:
+                    self.update_status(STATUS_FAILED)
+                    break
 
                 #select a random tile
                 x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
                 tile = self.grid.itemAtPosition(y, x).widget()
-                #print(x,y)
+
+                #tile has been already picked
+                if tile.is_revealed:
+                    unproductive_moves += 1
 
                 #get a 3x3 cluster around the tile
                 cluster = self.get_surrounding(x, y)
@@ -557,7 +566,11 @@ class MainWindow(QMainWindow):
                 if action == 1:
                     tile.click()
                     tile.reveal()
-                #action == 2 -> tile ingored
+                #action == 2 -> tile ignored
+
+                #skip
+                if action == -1:
+                    continue
 
                 #click + not mine
                 if not tile.is_mine and tile.is_revealed:

@@ -50,7 +50,6 @@ class QAgent:
                 return action
         #ignore undiscovered states when NOT training
         elif not any(observation in x for x in self.q_table):
-            print("NOT IN Q-TABLE")
             return -1
         #greedy action
         return self.greedy_action(observation)
