@@ -149,12 +149,12 @@ class Tile(QWidget):
 
             #else:
             #self.score += 1
-    def mark(self):
-        self.count += 1
-        return self.count > self.get_value()
 
-    def unmark(self):
-        self.count -= 1
+    def get_mark(self):
+        return self.type
+
+    def is_marked(self):
+        return self.marked
 
     def add_neighbors(self, neighbors):
         self.neighbors = set(neighbors)
@@ -187,4 +187,5 @@ class Tile(QWidget):
 
     def unmark(self):
         self.marked = False
+        self.type = None
         self.update()

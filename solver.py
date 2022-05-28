@@ -235,6 +235,7 @@ class TileTree:
             self.left = child
         else:
             self.right = child
+        self.update_branch_count(1)
 
     def remove_child(self, child):
         if child.get_value() == 0:
@@ -244,6 +245,7 @@ class TileTree:
 
         if self.value is not None:
             self.prune()
+        self.update_branch_count(-child.get_branch_count())
 
     def remove_self(self):
         self.parent.remove_child(self)
@@ -257,14 +259,25 @@ class TileTree:
             self.parent.remove_child(self)
 
     def update_branch_count(self, count):
-        self.branch_count += count
+        if self.parent is not None:
+            self.branch_count += count
+            self.parent.update_branch_count(count)
+        else:
+            self.branch_count += count
+
+    def get_root_branches(self):
+        if self.value is not None:
+            return self.parent.get_root_branches()
+        return self.branch_count
 
     def __hash__(self):
-        return hash((self.tile, self.value))
+        return hash((self.tile, self.value, self.parent))
 
     def __eq__(self, other):
         if other is None:
             return False
+        if isinstance(other, Tile):
+            return self.tile == other.tile
         return self.tile == other.tile and self.value == other.value
 
     def __ne__(self, other):
@@ -277,7 +290,6 @@ def rule3(perimeter, revealed):
     root = TileTree()
     parent_queue = {root}
     current_queue = set()
-
     perimeter_queue = set()
     while len(perimeter) > 0:
         if len(perimeter_queue) > 0:
@@ -292,13 +304,13 @@ def rule3(perimeter, revealed):
         # Preprocess Neighbors -> Convert revealed tiles into LinkedTile
         neighbors = list()
         for neighbor in tile.neighbors:
-            if neighbor in revealed:
-                if neighbor in linked_tiles:
-                    tmp = linked_tiles[neighbor]
-                else:
-                    tmp = LinkedTile(neighbor)
-                    linked_tiles[neighbor] = tmp
-                neighbors.append(tmp)
+            if neighbor in revealed and not neighbor.is_start:
+                # if neighbor in linked_tiles:
+                #     tmp = linked_tiles[neighbor]
+                # else:
+                #     tmp = LinkedTile(neighbor)
+                #     linked_tiles[neighbor] = tmp
+                neighbors.append(neighbor)
             elif not neighbor.is_revealed and neighbor in perimeter and neighbor not in hidden_processed:
                 perimeter_queue.add(neighbor)
 
@@ -306,24 +318,25 @@ def rule3(perimeter, revealed):
         current_queue.clear()
         while len(parent_queue) > 0:
             parent = parent_queue.pop()
-            branch_count = 2
             for value in [0, 1]:  # Each tile is inserted into tree with value 0 = no mine, value 1 = mine to create possible arrangements
                 if value == 0 and tile.is_flagged:
-                    branch_count = 0
                     continue
                 new_node = TileTree(value, tile, parent, neighbors)
                 current_queue.add(new_node)
                 parent.add_child(new_node)
-                new_node.get_tile().unmark()
-            root.update_branch_count(branch_count)
 
-        removed = set()  # Track removed nodes
-        is_valid(root, set(), removed)
-        parent_queue = current_queue - removed  # Valid terminal nodes after removal
+        removed = set()
+        is_valid(root, removed)
+        nodes = merge_branches(root)
+        minval = min(nodes.values())
+        if minval == 0:
+            tiles = [k for k, v in nodes.items() if v == minval]
+            return [candidate for candidate in tiles if candidate not in current_queue]
+        parent_queue = current_queue - removed
 
     nodes = merge_branches(root)
     minval = min(nodes.values())
-    values = [k.get_tile() for k, v in nodes.items() if v == minval]
+    values = [k for k, v in nodes.items() if v == minval]
     return values
 
 
@@ -339,14 +352,13 @@ def merge_branches(tree):
 
     while not queue.empty():
         node = queue.get()
-
         for child in [node.get_left(), node.get_right()]:
             if child is not None:
                 queue.put(child)
-                if child not in nodes:
-                    nodes[child] = 0
-                nodes[child] += child.get_value()
-    assert len(nodes) > 0
+                tile = child.get_tile()
+                if tile not in nodes:
+                    nodes[tile] = 0
+                nodes[tile] += child.get_value()
     return nodes
 
     # def rule3(revealed, values):
@@ -470,40 +482,66 @@ def get_remaining(tile):
     return len(tile.neighbors) - revealed - mines_to_place
 
 
-def is_valid(tree, traversed, removed):
+def is_valid(tree, removed):
     # Visualization timer
     loop = QEventLoop()
-    QTimer.singleShot(500, loop.quit)
+    QTimer.singleShot(10, loop.quit)
     loop.exec_()
+    # print(tree.get_root_branches())
+
     if tree.get_left() is not None:
         # When we go left, we keep track of nodes traversed.
         # if neighborhood - nodes traversed < mines to be placed, invalid placement -> Remove child from tree
         left_child = tree.get_left()
         left_child.get_tile().mark(left_child.get_value())
-        traversed.add(left_child)
-        check = True
-        for neighbor in left_child.get_neighbors():
-            tmp = neighbor.get_hidden_neighbors() - traversed
-            if len(tmp) == 0:
-                if neighbor.get_remaining_bombs() > 0:
-                    check = False
-                    break
-        if check:
-            is_valid(left_child, traversed, removed)
+        # traversed.add(left_child)
+        # check = True
+        # for neighbor in left_child.get_neighbors():
+        #     tmp = neighbor.get_hidden_neighbors() - traversed
+        #     if len(tmp) == 0:
+        #         if neighbor.get_remaining_bombs() > 0:
+        #             check = False
+        #             break
+        if is_satisfied(left_child):
+            is_valid(left_child, removed)
         else:
             tree.remove_child(left_child)
             removed.add(left_child)
-        traversed.remove(left_child)
+        # traversed.remove(left_child)
         left_child.get_tile().unmark()
+    if tree.get_branch_count() == 1:
+        return True
     if tree.get_right() is not None:
         # When we go right, we place a mine. Notify neighbors that a mine has been placed on the tile
         # If it is invalid, remove node.
         right_child = tree.get_right()
         right_child.get_tile().mark(right_child.get_value())
-        if notify_neighbors(right_child.get_neighbors(), 1):
-            is_valid(right_child, traversed, removed)
-            notify_neighbors(right_child.get_neighbors(), -1)
+        # if notify_neighbors(right_child.get_neighbors(), 1):
+        if is_satisfied(right_child):
+            is_valid(right_child, removed)
+            # notify_neighbors(right_child.get_neighbors(), -1)
         else:
             tree.remove_child(right_child)
             removed.add(right_child)
         right_child.get_tile().unmark()
+    return False
+
+
+def is_satisfied(tree):
+    for neighbor in tree.get_neighbors():  # Revealed neighbors
+        mines = 0
+        free = 0
+        hidden_neighborhood = [
+            n for n in neighbor.neighbors if not n.is_revealed]
+        for hidden_neighboring in hidden_neighborhood:
+            if hidden_neighboring.is_marked():
+                if hidden_neighboring.get_mark() == 0:
+                    free += 1
+                else:
+                    mines += 1
+        remaining = neighbor.get_value() - mines
+        if remaining < 0:
+            return False
+        if remaining > len(hidden_neighborhood) - mines - free:
+            return False
+    return True

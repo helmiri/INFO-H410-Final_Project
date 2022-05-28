@@ -886,7 +886,7 @@ class MainWindow(QMainWindow):
                 for tile in perimeter:
                     check = False
                     for neighbor in tile.neighbors:
-                        if not neighbor.is_revealed and not neighbor.is_flagged:
+                        if not neighbor.is_revealed and not neighbor.is_flagged and not neighbor.is_start:
                             check = True
                             break
                     if check:
