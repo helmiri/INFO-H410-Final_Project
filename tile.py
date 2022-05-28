@@ -45,9 +45,8 @@ class Tile(QWidget):
     def __init__(self, x, y, level, *args, **kwargs):
         super(Tile, self).__init__(*args, **kwargs)
         screen_size = QApplication.primaryScreen().availableSize()
-        tilesize = screen_size.height()//22
-        self.setFixedSize(QSize(tilesize,tilesize))
-        #self.setMaximumSize(QSize(60,60))
+        self.tilesize = (screen_size.height() - 200) // max(level[0], 16)
+        self.setFixedSize(QSize(self.tilesize, self.tilesize))
         self.x = x
         self.y = y
         self.boardsize = level
@@ -89,7 +88,7 @@ class Tile(QWidget):
         p.setPen(pen)
         p.drawRect(r)
         if self.is_revealed:
-            if self.is_start:
+            if self.is_start:                
                 p.drawPixmap(r, QPixmap(IMG_START))
             elif self.is_mine:
                 p.drawPixmap(r, QPixmap(IMG_BOMB))
@@ -176,11 +175,6 @@ class Tile(QWidget):
 
     def __str__(self):
         return"({0}, {1})".format(self.x, self.y)
-
-    def __lt__(self, other):
-        if self.x < other.x or (self.x == other.x and self.y < other.y):
-            return True
-        return False
 
     def mark(self, type):
         self.marked = True
