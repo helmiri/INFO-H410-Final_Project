@@ -513,15 +513,16 @@ class MainWindow(QMainWindow):
     Create a new RL agent and train it
     """
     def rl_learn(self):
-        alpha = 0.1
-        epsilon_max = 0.9
-        epsilon_min = 0.1
-        epsilon_decay = 0.99
-
-        #action : 1 = click ;  2 = ignore
-        self.agent = QAgent(alpha, epsilon_max, epsilon_min, epsilon_decay)
-        self.run_episode(True, 1000000)
-        self.rl_save()
+        res = self.warning_before_learn()
+        if(res == 1024):
+            alpha = 0.1
+            epsilon_max = 0.9
+            epsilon_min = 0.1
+            epsilon_decay = 0.99
+            #action : 1 = click ;  2 = ignore
+            self.agent = QAgent(alpha, epsilon_max, epsilon_min, epsilon_decay)
+            self.run_episode(True, 1000000)
+            self.rl_save()
 
     """
     Play using the trained RL agent
@@ -613,9 +614,6 @@ class MainWindow(QMainWindow):
                 nb_states.append(len(self.agent.q_table))
                 nb_wins.append(wins)
         print("WIN RATE:" + str(wins/nb_game*100))
-        #print(nb_states)
-        #print(nb_wins)
-        #print(len(self.agent.q_table))
 
     """
     Save the model of CNN
@@ -639,14 +637,14 @@ class MainWindow(QMainWindow):
         pool_size = 1
 
         model = keras.models.Sequential([
-          keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
+          keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Conv2D(40, filter_size, activation="selu"),
-          keras.layers.Conv2D(128, filter_size, activation="selu"),
-          keras.layers.Conv2D(40, filter_size, activation="selu"),
+          keras.layers.Conv2D(40, filter_size, activation="relu"),
+          keras.layers.Conv2D(128, filter_size, activation="relu"),
+          keras.layers.Conv2D(40, filter_size, activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"), # 40 ok
+          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
           #keras.layers.Dropout(0.01),
           keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
           #keras.layers.Dropout(0.01),
@@ -701,7 +699,7 @@ class MainWindow(QMainWindow):
                 nb_temp_game = 0
                 cnt = 0
                 while not self.win():
-                    if(cnt%10==0):
+                    if(cnt%20==0):
                         Xfin.append(self.get_tiles_revealed_value())
                         yfin.append(self.get_mine_peri())
                         nb_temp_game +=1
@@ -721,33 +719,38 @@ class MainWindow(QMainWindow):
              # TODO ajouter des fin de game en cachant certaine case
         return Xfin, yfin
 
+    def warning_before_learn(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("Warning !")
+        msg.setText("Warning !")
+        msg.setInformativeText("Attention, you will delete the previous saved model and create a new one, do you want to continue? ")
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        retval = msg.exec_()
+        return retval
+
     """
     Steps to do in order to train the model with all the different game
     """
     def button_AI_learn_pressed(self):
-        global SCORE
-        avg_score = 0; episodes = 5; datasetSize = 1000000
-
-        Xfin, yfin = self.create_game(datasetSize, 2)
-
-        # Train the model with all the game in the input list
-        n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
-        model = self.set_model(n_inputs)
-        X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float64"), np.array(yfin, dtype="float64"), test_size=0.1, random_state=seed)
-
-        X_train = X_train.reshape((X_train.shape[0], LEVEL[0], LEVEL[0], 1))
-        X_test = X_test.reshape((X_test.shape[0], LEVEL[0], LEVEL[0], 1))
-
-        history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
-        score = model.evaluate(X_test, Y_test, verbose=0)
-
-        self.save_model(model)
-
-        print("Number board:", datasetSize)
-        print("Test loss:", score[0])
-        print("Test accuracy:", score[1])
-        self.plot_AI_acc(history)
-        self.plot_AI_err(history)
+        avg_score = 0; episodes = 2; datasetSize = 200000
+        res = self.warning_before_learn()
+        if(res == 1024):
+            # TODO : delete old model
+            Xfin, yfin = self.create_game(datasetSize, 2)
+            n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
+            model = self.set_model(n_inputs)
+            X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float64"), np.array(yfin, dtype="float64"), test_size=0.1, random_state=seed)
+            X_train = X_train.reshape((X_train.shape[0], LEVEL[0], LEVEL[0], 1))
+            X_test = X_test.reshape((X_test.shape[0], LEVEL[0], LEVEL[0], 1))
+            history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
+            score = model.evaluate(X_test, Y_test, verbose=0)
+            self.save_model(model)
+            print("Number board:", datasetSize)
+            print("Test loss:", score[0])
+            print("Test accuracy:", score[1])
+            self.plot_AI_acc(history)
+            self.plot_AI_err(history)
 
     def plot_AI_acc(self, history):
         plt.plot(history.history['accuracy'], label='accuracy train')
