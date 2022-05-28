@@ -194,6 +194,7 @@ class MainWindow(QMainWindow):
                 tile.clicked.connect(self.trigger_start)
                 tile.expandable.connect(self.expand_reveal)
                 tile.ohno.connect(self.game_over)
+                tile.score.connect(self.update_score)
 
     """
     Reset all the board, choose random positions for mine and give new value to each tiles
@@ -433,11 +434,18 @@ class MainWindow(QMainWindow):
             self.clock.setText("%03d" % n_secs)
 
     """
+    Update the score
+    """
+    def update_score(self):
+        global SCORE
+        SCORE += 1
+
+    """
     Code execute when the game emit the 'ohno' signal which and the game and restart a new one
     """
     def game_over(self):
         global SCORE
-        #print("SCORE : ", SCORE)
+        print("SCORE : ", SCORE)
         SCORE = 0
         self.reveal_map()
         self.update_status(STATUS_FAILED)

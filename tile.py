@@ -36,6 +36,7 @@ class Tile(QWidget):
     expandable = pyqtSignal(int, int)
     clicked = pyqtSignal()
     ohno = pyqtSignal()
+    score = pyqtSignal()
 
     """
     Initialize the board, choose the size base on the LEVELS selected
@@ -146,9 +147,8 @@ class Tile(QWidget):
             self.click()
             if self.is_mine:
                 self.ohno.emit()
-
-            #else:
-            #self.score += 1
+            else:
+                self.score.emit()
 
     def get_mark(self):
         return self.type
