@@ -640,20 +640,6 @@ class MainWindow(QMainWindow):
             print("Number board:", datasetSize)
             print("Test loss:", score[0])
             print("Test accuracy:", score[1])
-            self.plot_AI_acc(history)
-            self.plot_AI_err(history)
-
-    def plot_AI_acc(self, history):
-        plt.plot(history.history['accuracy'], label='accuracy train')
-        plt.plot(history.history['val_accuracy'], label='accuracy test')
-        plt.xlabel('epoch')
-        plt.show()
-
-    def plot_AI_err(self, history):
-        plt.plot(history.history['loss'], label='error train')
-        plt.plot(history.history['val_loss'], label='error test')
-        plt.xlabel('epoch')
-        plt.show()
 
     """
     Code execute to test the prediction made by the model
