@@ -1,4 +1,3 @@
-from asyncio import sleep
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -8,7 +7,6 @@ from ai import AI
 from solver import *
 from rl import QAgent
 from tile import Tile
-from numpy import asarray
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -27,8 +25,11 @@ import pickle
 import random
 import time
 import numpy as np
+from numpy import asarray
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import shutil
+from asyncio import sleep
 
 # print(device_lib.list_local_devices())
 # 2.10.0.dev20220427
@@ -669,38 +670,13 @@ class MainWindow(QMainWindow):
     """
     def create_game(self, datasetSize, type):
         Xfin = []; yfin = []
-        # Create set of board game leading to win - Better accuracy but strange result during testing
-        if(type==0):
-            nb_board_game = 0
-            pbar = tqdm(total = datasetSize,  desc = "Creating winning games")
-            while nb_board_game < datasetSize:
-                nb_temp_game = 0
-                while not self.win():
-                    Xfin.append(self.get_tiles_revealed_value())
-                    yfin.append(self.get_mine_peri())
-                    #yfin.append(self.get_all_mine())
-                    x = random.randint(0, LEVEL[0]-1)
-                    y = random.randint(0, LEVEL[0]-1)
-                    # To play winning game only, no opti but ok because of 8x8 board
-                    while(self.grid.itemAtPosition(y, x).widget().is_mine):
-                        x = random.randint(0, LEVEL[0]-1)
-                        y = random.randint(0, LEVEL[0]-1)
-                    self.AI_turn(x, y)
-                    nb_temp_game +=1
-                nb_board_game+= nb_temp_game
-                self.update_status(STATUS_READY)
-                self.reset()
-                pbar.update(nb_temp_game)
-            pbar.close()
-        if(type==1): # Create set of random board of beginning of game
+        if(type==0): # Create set of random board of beginning of game
             for i in tqdm(range(0, datasetSize),  desc = "Creating random games"):
                 Xfin.append(self.get_tiles_revealed_value())
                 yfin.append(self.get_mine_peri())
-                #yfin.append(self.get_all_mine())
-                #yfin.append(self.get_tiles_value())
                 self.update_status(STATUS_READY)
                 self.reset()
-        if(type==2):
+        if(type==1):
             nb_board_game = 0
             pbar = tqdm(total = datasetSize,  desc = "Creating winning games")
             while nb_board_game < datasetSize:
@@ -724,7 +700,6 @@ class MainWindow(QMainWindow):
                 self.reset()
                 pbar.update(nb_temp_game)
             pbar.close()
-             # TODO ajouter des fin de game en cachant certaine case
         return Xfin, yfin
 
     def warning_before_learn(self):
@@ -741,11 +716,11 @@ class MainWindow(QMainWindow):
     Steps to do in order to train the model with all the different game
     """
     def button_AI_learn_pressed(self):
-        avg_score = 0; episodes = 2; datasetSize = 200000
+        avg_score = 0; episodes = 10; datasetSize = 2000000
         res = self.warning_before_learn()
         if(res == 1024):
-            # TODO : delete old model
-            Xfin, yfin = self.create_game(datasetSize, 2)
+            shutil.rmtree('model/model_cnn')
+            Xfin, yfin = self.create_game(datasetSize, 1)
             n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
             model = self.set_model(n_inputs)
             X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float64"), np.array(yfin, dtype="float64"), test_size=0.1, random_state=seed)
@@ -785,19 +760,17 @@ class MainWindow(QMainWindow):
 
         nb_test_run = 500
         wins = 0
-        for i in range(0, nb_test_run):
+        #for i in range(0, nb_test_run):
+        for i in tqdm(range(0, nb_test_run),  desc = "Playing games"):
             OLDSCORE = 0
             while not self.win():
                 QApplication.processEvents()
-                #testX = np.array([normalize(self.get_tiles_revealed_value())])
                 testX = np.array([self.get_tiles_revealed_value()])
                 test_x = np.array(testX[0].transpose())
                 test_x = test_x.reshape(1, LEVEL[0], LEVEL[0], 1)
                 yhat = model.predict(test_x)
-                # Give the positions of tile around the revealed tiles
                 peri = self.get_perimeter()
                 CURRENT_REVEALED = self.get_pos_of_revealed()
-                # Choose the best position to click given the prediction and the perimeter
                 x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
                 fx, fy = supersmart.flag(yhat, peri, CURRENT_REVEALED)
                 if(fx!=None):
@@ -805,11 +778,13 @@ class MainWindow(QMainWindow):
                     ftile.flag()
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
+
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-                print("WIN !")
-            else:
-                print("LOSE :(")
+                #print("WIN !")
+            #else:
+                #print("LOSE :(")
+
             avg_score += OLDSCORE
             self.update_status(STATUS_READY)
             SCORE = 0
