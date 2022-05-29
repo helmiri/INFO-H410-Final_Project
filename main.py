@@ -85,6 +85,7 @@ class MainWindow(QMainWindow):
 
         w = QWidget()
         hb = QHBoxLayout()
+        hb0 = QHBoxLayout()
         hb1 = QHBoxLayout()
         hb2 = QHBoxLayout()
 
@@ -94,21 +95,17 @@ class MainWindow(QMainWindow):
         self.score = QLabel()
         self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
 
-        self.clock = QLabel()
-        self.clock.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.status_text = QLabel()
+        self.status_text.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
 
         f = self.score.font()
         f.setPointSize(10)
         f.setWeight(75)
         self.score.setFont(f)
-        self.clock.setFont(f)
-
-        self._timer = QTimer()
-        self._timer.timeout.connect(self.update_timer)
-        self._timer.start(1000)  # 1 second timer
+        self.status_text.setFont(f)
 
         self.score.setText(str(SCORE))
-        self.clock.setText("000")
+        self.status_text.setText("0%")
 
         self.button = QPushButton("Restart")
         self.button.pressed.connect(self.button_pressed)
@@ -132,14 +129,15 @@ class MainWindow(QMainWindow):
         self.button_RL_play.pressed.connect(self.rl_play)
 
         score = QLabel("Score : ")
-        time = QLabel("Time : ")
+        status_text = QLabel("Win rate : ")
 
-        hb.addWidget(self.button)
-        hb.addWidget(self.button_solve)
         hb.addWidget(score)
         hb.addWidget(self.score)
-        hb.addWidget(time)
-        hb.addWidget(self.clock)
+        hb.addWidget(status_text)
+        hb.addWidget(self.status_text)
+
+        hb0.addWidget(self.button)
+        hb0.addWidget(self.button_solve)
 
         hb1.addWidget(self.button_AI_learn)
         hb1.addWidget(self.button_AI_play)
@@ -149,9 +147,10 @@ class MainWindow(QMainWindow):
         hb2.addWidget(self.button_RL_play)
 
         vb = QVBoxLayout()
-        vb.addLayout(hb)
+        vb.addLayout(hb0)
         vb.addLayout(hb1)
         vb.addLayout(hb2)
+        vb.addLayout(hb)
 
         self.grid = QGridLayout()
         self.grid.setSpacing(5)
@@ -199,7 +198,6 @@ class MainWindow(QMainWindow):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 tile.reset()
-                #tile.updatedata(CURRENT_REVEALED, SCORE)
 
         # Add mines to the positions
         positions = []
@@ -263,7 +261,6 @@ class MainWindow(QMainWindow):
             for elem in neighb_tmp:
                 if((elem.x, elem.y) not in CURRENT_REVEALED):
                     perimeter.add((elem.x, elem.y))
-
         return list(perimeter)
 
     def get_perim_as_tile(self):
@@ -404,7 +401,6 @@ class MainWindow(QMainWindow):
     def trigger_start(self, *args):
         if self.status != STATUS_PLAYING:
             self.update_status(STATUS_PLAYING)
-            self._timer_start_nsecs = int(time.time())
     """
     Update the current status of the player
     """
@@ -418,21 +414,10 @@ class MainWindow(QMainWindow):
         return self.status
 
     """
-    Update the in game timer value and the score
-    """
-    def update_timer(self):
-        global SCORE
-        self.score.setText(str(SCORE))
-        if self.status == STATUS_PLAYING:
-            n_secs = int(time.time()) - self._timer_start_nsecs
-            self.clock.setText("%03d" % n_secs)
-
-    """
     Update the score
     """
     def update_score(self):
         global SCORE
-
         revealed = self.get_revealed_tiles()
         SCORE = len(revealed)
 
@@ -461,7 +446,6 @@ class MainWindow(QMainWindow):
         global SCORE
         SCORE = 0
         self.score.setText(str(SCORE))
-
         if self.status == STATUS_PLAYING:
             self.update_status(STATUS_FAILED)
             self.reveal_map()
@@ -479,7 +463,6 @@ class MainWindow(QMainWindow):
         cond = False
         if self.get_status() == STATUS_FAILED:
             return True
-
         if len(self.get_revealed_tiles()) == (LEVEL[0] ** 2) - LEVEL[1]:
             cond = True
             self.update_status(STATUS_SUCCESS)
@@ -605,6 +588,7 @@ class MainWindow(QMainWindow):
 
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
+            self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
             self.reset_map()
             if (episode%10000) == 0:
                 nb_states.append(len(self.agent.q_table))
@@ -628,10 +612,8 @@ class MainWindow(QMainWindow):
     """
     def set_model(self, n_inputs):
         matrixSize = n_inputs
-
         filter_size = 2
         pool_size = 1
-
         model = keras.models.Sequential([
           keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
           keras.layers.MaxPooling2D(pool_size=pool_size),
@@ -647,7 +629,6 @@ class MainWindow(QMainWindow):
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
-
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
         return model
@@ -655,40 +636,35 @@ class MainWindow(QMainWindow):
     """
     Generate different sets of boards
     """
-    def create_game(self, datasetSize, type):
+    def create_game(self, datasetSize):
         Xfin = []; yfin = []
-        if(type==0): # Create set of random board of beginning of game
-            for i in tqdm(range(0, datasetSize),  desc = "Creating random games"):
-                Xfin.append(self.get_tiles_revealed_value())
-                yfin.append(self.get_mine_peri())
-                self.update_status(STATUS_READY)
-                self.reset()
-        if(type==1):
-            nb_board_game = 0
-            pbar = tqdm(total = datasetSize,  desc = "Creating winning games")
-            while nb_board_game < datasetSize:
-                nb_temp_game = 0
-                cnt = 0
-                while not self.win():
-                    if(cnt%20==0):
-                        Xfin.append(self.get_tiles_revealed_value())
-                        yfin.append(self.get_mine_peri())
-                        nb_temp_game +=1
+        nb_board_game = 0
+        pbar = tqdm(total = datasetSize,  desc = "Creating winning games")
+        while nb_board_game < datasetSize:
+            nb_temp_game = 0
+            cnt = 0
+            while not self.win():
+                if(cnt%20==0):
+                    Xfin.append(self.get_tiles_revealed_value())
+                    yfin.append(self.get_mine_peri())
+                    nb_temp_game +=1
+                x = random.randint(0, LEVEL[0]-1)
+                y = random.randint(0, LEVEL[0]-1)
+                while(self.grid.itemAtPosition(y, x).widget().is_mine):
                     x = random.randint(0, LEVEL[0]-1)
                     y = random.randint(0, LEVEL[0]-1)
-                    # To play winning game only, no opti but ok because of 8x8 board
-                    while(self.grid.itemAtPosition(y, x).widget().is_mine):
-                        x = random.randint(0, LEVEL[0]-1)
-                        y = random.randint(0, LEVEL[0]-1)
-                    self.AI_turn(x, y)
-                    cnt+=1
-                nb_board_game+= nb_temp_game
-                self.update_status(STATUS_READY)
-                self.reset()
-                pbar.update(nb_temp_game)
-            pbar.close()
+                self.AI_turn(x, y)
+                cnt+=1
+            nb_board_game+= nb_temp_game
+            self.update_status(STATUS_READY)
+            self.reset()
+            pbar.update(nb_temp_game)
+        pbar.close()
         return Xfin, yfin
 
+    """
+    # WARNING: Dialog window
+    """
     def warning_before_learn(self):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
@@ -707,7 +683,7 @@ class MainWindow(QMainWindow):
         res = self.warning_before_learn()
         if(res == 1024):
             shutil.rmtree('model/model_cnn')
-            Xfin, yfin = self.create_game(datasetSize, 1)
+            Xfin, yfin = self.create_game(datasetSize)
             n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
             model = self.set_model(n_inputs)
             X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float64"), np.array(yfin, dtype="float64"), test_size=0.1, random_state=seed)
@@ -742,12 +718,9 @@ class MainWindow(QMainWindow):
         global SCORE
         avg_score = 0
         self.update_status(STATUS_READY)
-
         model = self.load_model()
-
         nb_test_run = 500
         wins = 0
-        #for i in range(0, nb_test_run):
         for i in tqdm(range(0, nb_test_run),  desc = "Playing games"):
             OLDSCORE = 0
             while not self.win():
@@ -765,13 +738,9 @@ class MainWindow(QMainWindow):
                     ftile.flag()
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
-
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-                #print("WIN !")
-            #else:
-                #print("LOSE :(")
-
+            self.status_text.setText(str(round(wins/nb_test_run*100,2))+"%")
             avg_score += OLDSCORE
             self.update_status(STATUS_READY)
             SCORE = 0
@@ -844,14 +813,14 @@ class MainWindow(QMainWindow):
         previous = 0
         scores = list()
         win_history = list()
-        for episode in range(nb_game):
+        for episode in tqdm(range(nb_game), desc = "Solving games"):
             tile = None
             SCORE = 0
             while not self.win():
+                QApplication.processEvents()
                 revealed = self.get_revealed_tiles()
                 SCORE = len(revealed)
                 self.score.setText(str(SCORE))
-                QApplication.processEvents()
 
                 if tile is not None and tile.is_mine and tile.is_revealed:
                     self.update_status(STATUS_FAILED)
@@ -925,11 +894,12 @@ class MainWindow(QMainWindow):
                 # tile = self.grid.itemAtPosition(item[1], item[0]).widget()
                 # tile.click()
                 # tile.reveal()
+
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-            print("WINS/TOTAL: " + str(wins) + "/" + str(episode + 1))
-            print("AVERAGE SCORE/MAX SCORE: {0}/{1}".format(
-                str(round((previous + SCORE) / (episode + 1), 2)), str(max_score)))
+            self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
+            #print("WINS/TOTAL: " + str(wins) + "/" + str(episode + 1))
+            #print("AVERAGE SCORE/MAX SCORE: {0}/{1}".format(str(round((previous + SCORE) / (episode + 1), 2)), str(max_score)))
             previous += SCORE
             self.reset_map()
 
