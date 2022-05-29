@@ -45,7 +45,7 @@ class Tile(QWidget):
     def __init__(self, x, y, level, *args, **kwargs):
         super(Tile, self).__init__(*args, **kwargs)
         screen_size = QApplication.primaryScreen().availableSize()
-        self.tilesize = (screen_size.height() - 200) // max(level[0], 16)
+        self.tilesize = screen_size.height() // (level[0]*2)
         self.setFixedSize(QSize(self.tilesize, self.tilesize))
         self.x = x
         self.y = y

@@ -81,13 +81,6 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon("./images/bomb.png"))
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
-        screen_size = QApplication.primaryScreen().availableSize()
-        tilesize = screen_size.height()//20
-        #screen_height = screen_size.height() - 50 if LEVEL != LEVELS[0] else screen_size.height()
-        #tilesize = screen_height // max(LEVEL[0], 16)
-        #self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
-        #self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
-
         self.b_size, self.n_mines = LEVEL
 
         w = QWidget()
@@ -161,7 +154,7 @@ class MainWindow(QMainWindow):
         vb.addLayout(hb2)
 
         self.grid = QGridLayout()
-        self.grid.setSpacing(10)
+        self.grid.setSpacing(5)
 
         vb.addLayout(self.grid)
         w.setLayout(vb)
