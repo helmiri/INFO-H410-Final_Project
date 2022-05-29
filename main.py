@@ -92,39 +92,27 @@ class MainWindow(QMainWindow):
         self.agent = None
         self.manual_play = False
 
+        self.button_solve = QPushButton("Solve")
+        self.button_solve.pressed.connect(self.button_solve_pressed)
+        self.button_AI_learn = QPushButton("CNN Learn")
+        self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
+        self.button_AI_play = QPushButton("CNN Play")
+        self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
+        self.button_RL_learn = QPushButton("RL learn")
+        self.button_RL_learn.pressed.connect(self.rl_learn)
+        self.button_RL_play = QPushButton("RL play")
+        self.button_RL_play.pressed.connect(self.rl_play)
         self.score = QLabel()
         self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-
         self.status_text = QLabel()
         self.status_text.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-
         f = self.score.font()
         f.setPointSize(10)
         f.setWeight(75)
         self.score.setFont(f)
         self.status_text.setFont(f)
-
         self.score.setText(str(SCORE))
         self.status_text.setText("0%")
-
-        self.button = QPushButton("Restart")
-        self.button.pressed.connect(self.button_pressed)
-
-        self.button_AI_learn = QPushButton("CNN Learn")
-        self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
-
-        self.button_AI_play = QPushButton("CNN Play")
-        self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
-
-        self.button_solve = QPushButton("Solve")
-        self.button_solve.pressed.connect(self.button_solve_pressed)
-
-        self.button_RL_learn = QPushButton("RL learn")
-        self.button_RL_learn.pressed.connect(self.rl_learn)
-
-        self.button_RL_play = QPushButton("RL play")
-        self.button_RL_play.pressed.connect(self.rl_play)
-
         score = QLabel("Score : ")
         status_text = QLabel("Win rate : ")
 
@@ -132,13 +120,9 @@ class MainWindow(QMainWindow):
         hb.addWidget(self.score)
         hb.addWidget(status_text)
         hb.addWidget(self.status_text)
-
-        hb0.addWidget(self.button)
         hb0.addWidget(self.button_solve)
-
         hb1.addWidget(self.button_AI_learn)
         hb1.addWidget(self.button_AI_play)
-
         hb2.addWidget(self.button_RL_learn)
         hb2.addWidget(self.button_RL_play)
 
@@ -437,25 +421,8 @@ class MainWindow(QMainWindow):
         self.reset()
 
     """
-    Code execute when the user click on the restart button
+    Check if a game is win or not
     """
-    def button_pressed(self):
-        global SCORE
-        SCORE = 0
-        self.score.setText(str(SCORE))
-        if self.status == STATUS_PLAYING:
-            self.update_status(STATUS_FAILED)
-            self.reveal_map()
-        elif self.status == STATUS_READY:
-            self.update_status(STATUS_FAILED)
-            self.reveal_map()
-        elif self.status == STATUS_FAILED:
-            self.update_status(STATUS_READY)
-            self.reset_map()
-        elif self.status == STATUS_SUCCESS:
-            self.update_status(STATUS_READY)
-            self.reset_map()
-
     def win(self):
         cond = False
         if self.get_status() == STATUS_FAILED:
