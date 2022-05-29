@@ -76,7 +76,9 @@ class Tile(QWidget):
             color = self.palette().color(QPalette.Background)
             outer, inner = color, color
         elif self.marked:
-            if self.type == 1:
+            if self.type == -1:
+                outer, inner = QColor('#878787'), QColor('#202020')
+            elif self.type == 1:
                 outer, inner = QColor('#1261b5'), QColor('#1261b5')
             else:
                 outer, inner = QColor('#b51248'), QColor('#b51248')

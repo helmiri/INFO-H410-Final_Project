@@ -720,7 +720,7 @@ class MainWindow(QMainWindow):
         avg_score = 0
         self.update_status(STATUS_READY)
         model = self.load_model()
-        nb_test_run = 500
+        nb_test_run = 1000
         wins = 0
         for i in tqdm(range(0, nb_test_run),  desc = "Playing games"):
             OLDSCORE = 0
@@ -733,10 +733,14 @@ class MainWindow(QMainWindow):
                 peri = self.get_perimeter()
                 CURRENT_REVEALED = self.get_pos_of_revealed()
                 x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
-                fx, fy = supersmart.flag(yhat, peri, CURRENT_REVEALED)
-                if(fx!=None):
-                    ftile = self.grid.itemAtPosition(fy, fx).widget()
+                fpos, mpos = supersmart.flag(yhat, peri, CURRENT_REVEALED)
+                if(fpos[0]!=None):
+                    ftile = self.grid.itemAtPosition(fpos[1], fpos[0]).widget()
+                    mtile.mark(-1)
                     ftile.flag()
+                if(mpos[0]!=None):
+                    mtile = self.grid.itemAtPosition(mpos[1], mpos[0]).widget()
+                    mtile.mark(0)
                 OLDSCORE = SCORE
                 self.AI_turn(x, y)
             if self.get_status() == STATUS_SUCCESS:
