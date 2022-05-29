@@ -420,6 +420,7 @@ class MainWindow(QMainWindow):
         global SCORE
         revealed = self.get_revealed_tiles()
         SCORE = len(revealed)
+        self.score.setText(str(SCORE))
 
     """
     Update the manual play boolean
