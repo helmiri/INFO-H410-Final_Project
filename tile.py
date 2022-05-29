@@ -88,7 +88,7 @@ class Tile(QWidget):
         p.setPen(pen)
         p.drawRect(r)
         if self.is_revealed:
-            if self.is_start:                
+            if self.is_start:
                 p.drawPixmap(r, QPixmap(IMG_START))
             elif self.is_mine:
                 p.drawPixmap(r, QPixmap(IMG_BOMB))

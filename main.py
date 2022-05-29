@@ -2,14 +2,23 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from sklearn import neighbors
 from ai import AI
 from solver import *
 from rl import QAgent
 from tile import Tile
 
 from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import Dropout
+from keras.layers import Reshape
+from keras.layers import Conv2D
+from keras.layers import MaxPooling2D
 
+from tensorflow.python.client import device_lib
+from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import normalize
 from tensorflow import keras
 
 import pickle
@@ -21,11 +30,6 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import shutil
 from asyncio import sleep
-
-# print(device_lib.list_local_devices())
-# 2.10.0.dev20220427
-
-# To add a package to the project : poetry add 'package_name'
 
 # ===============================================================================
 # GLOBAL VARIABLES
@@ -45,7 +49,6 @@ supersmart = AI()
 seed = 7
 np.random.seed(seed)
 random.seed(seed)
-
 
 NUM_COLORS = {
     0: QColor('#4CAF50'),
@@ -69,8 +72,6 @@ STATUS_SUCCESS = 3
 """
 Main class use for GUI and the AI managment
 """
-
-
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         global LEVEL
@@ -81,10 +82,11 @@ class MainWindow(QMainWindow):
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         screen_size = QApplication.primaryScreen().availableSize()
-        screen_height = screen_size.height() - 50 if LEVEL != LEVELS[0] else screen_size.height()
-        tilesize = screen_height // max(LEVEL[0], 16)
-        self.setFixedHeight(min(LEVEL[0]*tilesize, screen_height))
-        self.setFixedWidth(min(LEVEL[0]*tilesize, screen_height))
+        tilesize = screen_size.height()//20
+        #screen_height = screen_size.height() - 50 if LEVEL != LEVELS[0] else screen_size.height()
+        #tilesize = screen_height // max(LEVEL[0], 16)
+        #self.setFixedHeight(min(LEVEL[0]*tilesize, screen_size.height()))
+        #self.setFixedWidth(min(LEVEL[0]*tilesize, screen_size.width()))
 
         self.b_size, self.n_mines = LEVEL
 
@@ -860,7 +862,7 @@ class MainWindow(QMainWindow):
 
                 if tile is not None and tile.is_mine and tile.is_revealed:
                     self.update_status(STATUS_FAILED)
-                    continue
+                    break
                 tmp = list()
                 for item in revealed:
                     tmp.append(self.get_surrounding(item.x, item.y))
@@ -872,6 +874,10 @@ class MainWindow(QMainWindow):
                         if not neighbor.is_revealed:
                             neighborhoods[i].append(neighbor)
 
+                # revealed = [tile for i, tile in enumerate(
+                #     revealed) if neighborhoods[i] != []]
+                # neighborhoods = [
+                #     neighborhood for neighborhood in neighborhoods if neighborhood != []]
                 tile = rule_1(revealed, neighborhoods)
                 if tile != None:
                     tile.flag()
@@ -879,6 +885,7 @@ class MainWindow(QMainWindow):
                 tile = rule_2(revealed, neighborhoods)
                 if tile != None:
                     tile.click()
+                    tile.reveal()
                     continue
 
                 # perimeter_d = dict.fromkeys(self.get_perimeter(), 0)
@@ -905,7 +912,6 @@ class MainWindow(QMainWindow):
                 if certainty == 1:
                     for tile in free:
                         tile.click()
-                        
                 else:
                     tile = random.choice(free)
                     tile.click()
@@ -915,22 +921,25 @@ class MainWindow(QMainWindow):
                 for tile in flags:
                     tile.flag()
 
+                # tile = rule3(dict(zip(revealed, neighborhoods)),
+                #              perimeter_neighbors)
+                # if tile != None:
+                #     tile.click()
+                #     tile.reveal()
+                # coords = naive(revealed, tmp, perimeter_d)
+                # coords = dict(zip(perimeter, perimeter_neighbors))
+                # item = random.choice(coords)
+                # tile = self.grid.itemAtPosition(item[1], item[0]).widget()
+                # tile.click()
+                # tile.reveal()
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-                SCORE = max_score
-                win_history.append(1)
-            else:
-                win_history.append(0)
             print("WINS/TOTAL: " + str(wins) + "/" + str(episode + 1))
             print("AVERAGE SCORE/MAX SCORE: {0}/{1}".format(
                 str(round((previous + SCORE) / (episode + 1), 2)), str(max_score)))
             previous += SCORE
-            scores.append(SCORE)
             self.reset_map()
-            with open(f'scores_{LEVEL[0]}.p', "wb") as file:
-                pickle.dump(scores, file)
-            with open(f'wins_{LEVEL[0]}.p', "wb") as file:
-                pickle.dump(scores, file)
+
         print("WIN RATE:" + str(wins/nb_game*100))
 
 

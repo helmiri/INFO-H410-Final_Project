@@ -1,67 +1,90 @@
-keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
-keras.layers.MaxPooling2D(pool_size=pool_size),
-keras.layers.Conv2D(24, filter_size, activation="selu"),
-keras.layers.Conv2D(128, filter_size, activation="selu"),
-keras.layers.Conv2D(128, filter_size, activation="selu"),
-keras.layers.Conv2D(24, filter_size, activation="selu"),
-keras.layers.MaxPooling2D(pool_size=pool_size),
-keras.layers.Flatten(),
-keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"),
-keras.layers.Dropout(0.025),
-keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
-keras.layers.Dropout(0.025),
-keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
-keras.layers.Reshape((matrixSize, matrixSize))
-self.train_AI(10000) #500000
-Epoch 10/10
-loss: 0.0466 - accuracy: 0.5161 - val_loss: 0.0485 - val_accuracy: 0.5162
-Test loss: 0.04862844944000244
-Test accuracy: 0.5148516297340393
-WIN RATE:17.8%
-Avg. score :  10.038
+relu, sigmoid, sigmoid (-1) (96, 40, 128, 40, 40, 40) 2
+Number board: 200000
+Test loss: 0.019471341744065285
+Test accuracy: 0.5570158958435059
+WIN RATE:22.6%
+Avg. score :  9.936
 
-====================================================
+relu, relu, sigmoid (-1) (96, 40, 128, 40, 40, 40) 2
+Number board: 200000
+Test loss: 0.1466372013092041
+Test accuracy: 0.09178291261196136
+WIN RATE:0.0%
+Avg. score :  20.164
 
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 40, 40) 2
+Number board: 200000
+Test loss: 0.01095364335924387
+Test accuracy: 0.5811147093772888
+WIN RATE:34.8%
+Avg. score :  28.694
 
-self.train_AI(1000000) #500000
-WIN RATE:32.4%
-Avg. score :  12.236
+sigmoid, sigmoid, sigmoid (-50) (96, 40, 128, 40, 40, 40) 2
+Number board: 200000
+Test loss: 0.022875631228089333
+Test accuracy: 0.585764467716217
+WIN RATE:15.8%
+Avg. score :  25.26
 
-====================================================
-keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
-keras.layers.MaxPooling2D(pool_size=pool_size),
-keras.layers.Conv2D(24, filter_size, activation="selu"),
-keras.layers.Conv2D(64, filter_size, activation="selu"),
-keras.layers.Conv2D(24, filter_size, activation="selu"),
-keras.layers.MaxPooling2D(pool_size=pool_size),
-keras.layers.Flatten(),
-keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"),
-keras.layers.Dropout(0.015),
-keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
-keras.layers.Dropout(0.015),
-keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
-keras.layers.Reshape((matrixSize, matrixSize))
-self.train_AI(10000) #50000
-loss: 0.1211 - accuracy: 0.2227 - val_loss: 0.1177 - val_accuracy: 0.2191
-Test loss: 0.11646706610918045
-Test accuracy: 0.23501498997211456
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 256, 40, 64, 64) 2
+Number board: 200000
+Test loss: 0.1331738978624344
+Test accuracy: 0.14098669588565826
+WIN RATE:0.0%
+Avg. score :  19.996
 
-====================================================
-keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="selu"),
-keras.layers.MaxPooling2D(pool_size=pool_size),
-keras.layers.Conv2D(64, filter_size, activation="selu"),
-keras.layers.Conv2D(24, filter_size, activation="selu"),
-keras.layers.Conv2D(128, filter_size, activation="selu"),
-keras.layers.Conv2D(24, filter_size, activation="selu"),
-keras.layers.MaxPooling2D(pool_size=pool_size),
-keras.layers.Flatten(),
-keras.layers.Dense((matrixSize*matrixSize)*64, activation="selu"),
-keras.layers.Dropout(0.015),
-keras.layers.Dense((matrixSize*matrixSize)*64, activation="sigmoid"),
-keras.layers.Dropout(0.015),
-keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
-keras.layers.Reshape((matrixSize, matrixSize))
-self.train_AI(10000) #50000
-loss: 0.0163 - accuracy: 0.5813 - val_loss: 0.0227 - val_accuracy: 0.5659
-Test loss: 0.022368645295500755
-Test accuracy: 0.5786713361740112
+sigmoid, sigmoid, sigmoid (-1) (128, 40, 256, 40, 40, 40) 2
+Number board: 200000
+Test loss: 0.011107049882411957
+Test accuracy: 0.5754774808883667
+WIN RATE:28.999999999999996%
+Avg. score :  27.78
+
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 32, 32) 2
+Number board: 200000
+Test loss: 0.017213713377714157
+Test accuracy: 0.5792148113250732
+WIN RATE:21.4%
+Avg. score :  26.236
+
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 44, 44) 2
+Number board: 200000
+Test loss: 0.021613089367747307
+Test accuracy: 0.5795835256576538
+WIN RATE:23.0%
+Avg. score :  27.024
+
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 40, 40) 10
+Number board: 200000
+Test loss: 0.00676749087870121
+Test accuracy: 0.5978638529777527
+WIN RATE:40.6%
+Avg. score :  30.066
+
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 40, 40) 10
+Number board: 1000000
+Test loss: 0.004977382253855467
+Test accuracy: 0.5792391896247864
+WIN RATE:62.0%
+Avg. score :  31.598
+
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 40, 40) 10 + Dropout 0.01
+Number board: 200000
+Test loss: 0.006119043566286564
+Test accuracy: 0.5803022384643555
+WIN RATE:40.400000000000006%
+Avg. score :  29.324
+
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 40, 40) 10 + Conv lay 64 en plus
+Number board: 200000
+Test loss: 0.007209585048258305
+Test accuracy: 0.5731088519096375
+WIN RATE:38.0%
+Avg. score :  30.336
+
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 40, 40) 10 + Conv lay 40 en en moins
+Number board: 200000
+Test loss: 0.00577777111902833
+Test accuracy: 0.5711339712142944
+WIN RATE:37.2%
+Avg. score :  28.676
