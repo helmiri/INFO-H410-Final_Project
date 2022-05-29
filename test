@@ -88,3 +88,30 @@ Test loss: 0.00577777111902833
 Test accuracy: 0.5711339712142944
 WIN RATE:37.2%
 Avg. score :  28.676
+
+
+sigmoid, sigmoid, sigmoid (-1) (96, 40, 128, 40, 40, 40) 10
+Number board: 3000000
+Test loss: 0.004388064611703157
+Test accuracy: 0.6000171899795532
+
+Epoch 1/10
+12151/12151 [==============================] - 1212s 100ms/step - loss: 0.0120 - accuracy: 0.5575 - val_loss: 0.0069 - val_accuracy: 0.5931
+Epoch 2/10
+12151/12151 [==============================] - 1203s 99ms/step - loss: 0.0059 - accuracy: 0.5745 - val_loss: 0.0057 - val_accuracy: 0.5677
+Epoch 3/10
+12151/12151 [==============================] - 1197s 99ms/step - loss: 0.0052 - accuracy: 0.5776 - val_loss: 0.0052 - val_accuracy: 0.5776
+Epoch 4/10
+12151/12151 [==============================] - 1200s 99ms/step - loss: 0.0047 - accuracy: 0.5787 - val_loss: 0.0049 - val_accuracy: 0.5864
+Epoch 5/10
+12151/12151 [==============================] - 1189s 98ms/step - loss: 0.0043 - accuracy: 0.5787 - val_loss: 0.0049 - val_accuracy: 0.5802
+Epoch 6/10
+12151/12151 [==============================] - 1203s 99ms/step - loss: 0.0040 - accuracy: 0.5808 - val_loss: 0.0047 - val_accuracy: 0.5770
+Epoch 7/10
+12151/12151 [==============================] - 1196s 98ms/step - loss: 0.0037 - accuracy: 0.5824 - val_loss: 0.0045 - val_accuracy: 0.5925
+Epoch 8/10
+12151/12151 [==============================] - 1200s 99ms/step - loss: 0.0034 - accuracy: 0.5871 - val_loss: 0.0044 - val_accuracy: 0.5876
+Epoch 9/10
+12151/12151 [==============================] - 1240s 102ms/step - loss: 0.0031 - accuracy: 0.5919 - val_loss: 0.0044 - val_accuracy: 0.5882
+Epoch 10/10
+12151/12151 [==============================] - 1198s 99ms/step - loss: 0.0029 - accuracy: 0.5979 - val_loss: 0.0044 - val_accuracy: 0.6002

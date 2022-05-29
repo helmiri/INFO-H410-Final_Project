@@ -2,56 +2,10 @@ from queue import Queue
 from PyQt5.QtCore import QEventLoop, QTimer
 from typing import Iterable
 
-
 from tile import Tile
 
-
-
 """
-    If number of hidden tiles in the neighborhood equals the value of the tile, flag all tiles surrounding it as bombs.
-"""
-
-def rule_1(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]]):
-    for i, neighborhood in enumerate(neighborhoods):
-        length = len(neighborhood)
-        flags = 0
-        for tile in neighborhood:
-            if tile.is_revealed:
-                length -= 1
-            elif tile.is_flagged:
-                flags += 1
-        if revealed_values[i].get_value() - flags == length - flags:
-            for tile in neighborhood:
-                if not tile.is_revealed and not tile.is_flagged:
-                    return tile
-    return None
-
-
-"""
-    If the number of flagged tiles in the neighborhood equals the value of the tile, all hidden tiles in the neighborhood are safe
-"""
-
-
-def rule_2(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]]):
-    for i, neighborhood in enumerate(neighborhoods):
-        flags = 0
-        for tile in neighborhood:
-            if tile.is_flagged:
-                flags += 1
-        if revealed_values[i].get_value() == flags:
-            for tile in neighborhood:
-                if not tile.is_flagged and not tile.is_revealed:
-                    return tile
-    return None
-
-
-
-"""
-    Revealed tiles are wrapped with this class. Allows tracking of how many remaining mines must be placed in its neighborhood
-"""
-
-"""
-    Binary Tree node
+Binary Tree node
 """
 class TileTree:
     def __init__(self, value=None, tile=None, parent=None, neighbors=[]) -> None:
@@ -59,10 +13,8 @@ class TileTree:
         self.neighbors = neighbors
         self.tile = tile
         self.parent = parent
-
         self.left = None
         self.right = None
-
         self.branch_count = 0
 
     def get_tile(self):
@@ -106,9 +58,8 @@ class TileTree:
         return False
 
     """
-        Remove unneeded branches. This happens when a mine placement is invalid. The corresponding branch will be removed
+    Remove unneeded branches. This happens when a mine placement is invalid. The corresponding branch will be removed
     """
-
     def prune(self):
         if self.left is None and self.right is None:
             self.parent.remove_child(self)
@@ -138,7 +89,42 @@ class TileTree:
     def __ne__(self, other):
         return not(self == other)
 
+"""
+If number of hidden tiles in the neighborhood equals the value of the tile, flag all tiles surrounding it as bombs.
+"""
+def rule_1(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]]):
+    for i, neighborhood in enumerate(neighborhoods):
+        length = len(neighborhood)
+        flags = 0
+        for tile in neighborhood:
+            if tile.is_revealed:
+                length -= 1
+            elif tile.is_flagged:
+                flags += 1
+        if revealed_values[i].get_value() - flags == length - flags:
+            for tile in neighborhood:
+                if not tile.is_revealed and not tile.is_flagged:
+                    return tile
+    return None
 
+"""
+If the number of flagged tiles in the neighborhood equals the value of the tile, all hidden tiles in the neighborhood are safe
+"""
+def rule_2(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]]):
+    for i, neighborhood in enumerate(neighborhoods):
+        flags = 0
+        for tile in neighborhood:
+            if tile.is_flagged:
+                flags += 1
+        if revealed_values[i].get_value() == flags:
+            for tile in neighborhood:
+                if not tile.is_flagged and not tile.is_revealed:
+                    return tile
+    return None
+
+"""
+Revealed tiles are wrapped with this class. Allows tracking of how many remaining mines must be placed in its neighborhood
+"""
 def rule3(perimeter, revealed):
     hidden_processed = set()
     root = TileTree()
@@ -197,10 +183,8 @@ def rule3(perimeter, revealed):
 
 
 """
-    For each tile, count occurrences where it is a mine
+For each tile, count occurrences where it is a mine
 """
-
-
 def merge_branches(tree):
     nodes = dict()
     occurrences = dict()
@@ -228,7 +212,6 @@ def is_valid(tree, removed):
     if tree is None:
         return
     # Visualization timer
-    
     # print(tree.get_root_branches())
     if tree.get_value() is not None:
         tree.get_tile().mark(tree.get_value())
@@ -246,8 +229,6 @@ def is_valid(tree, removed):
 
     if tree.get_value() is not None:
         tree.get_tile().unmark()
-
-
 
 def is_satisfied(tree):
     for neighbor in tree.get_neighbors():  # Revealed neighbors

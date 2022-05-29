@@ -82,15 +82,15 @@ class MainWindow(QMainWindow):
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         self.b_size, self.n_mines = LEVEL
+        self.agent = None
+        self.manual_play = False
 
         w = QWidget()
+        vb = QVBoxLayout()
         hb = QHBoxLayout()
         hb0 = QHBoxLayout()
         hb1 = QHBoxLayout()
         hb2 = QHBoxLayout()
-
-        self.agent = None
-        self.manual_play = False
 
         self.button_solve = QPushButton("Solve")
         self.button_solve.pressed.connect(self.button_solve_pressed)
@@ -125,24 +125,18 @@ class MainWindow(QMainWindow):
         hb1.addWidget(self.button_AI_play)
         hb2.addWidget(self.button_RL_learn)
         hb2.addWidget(self.button_RL_play)
-
-        vb = QVBoxLayout()
         vb.addLayout(hb0)
         vb.addLayout(hb1)
         vb.addLayout(hb2)
         vb.addLayout(hb)
-
         self.grid = QGridLayout()
         self.grid.setSpacing(5)
-
         vb.addLayout(self.grid)
         w.setLayout(vb)
-
         self.setCentralWidget(w)
 
         self.init_map()
         self.update_status(STATUS_READY)
-
         self.reset_map()
         self.update_status(STATUS_READY)
 
@@ -171,14 +165,12 @@ class MainWindow(QMainWindow):
     """
     def reset_map(self):
         global SCORE, CURRENT_REVEALED
-
         self.manual_play = False
         # Clear all mine positions
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 tile.reset()
-
         # Add mines to the positions
         positions = []
         while len(positions) < self.n_mines:
@@ -188,20 +180,17 @@ class MainWindow(QMainWindow):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 tile.is_mine = True
                 positions.append((x, y))
-
         # Give number of mines surrounding a tile
         def get_adjacency_n(x, y):
             positions = self.get_surrounding(x, y)
             n_mines = sum(1 if tile.is_mine else 0 for tile in positions)
             return n_mines
-
         # Add adjacencies to the positions
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 tile.adjacent_n = get_adjacency_n(x, y)
                 tile.neighbors = self.get_surrounding(tile.x, tile.y)
-
         # Place starting marker
         while True:
             x, y = random.randint(
@@ -474,11 +463,7 @@ class MainWindow(QMainWindow):
     def rl_learn(self):
         res = self.warning_before_learn()
         if(res == 1024):
-            alpha = 0.1
-            epsilon_max = 0.9
-            epsilon_min = 0.1
-            epsilon_decay = 0.99
-            #action : 1 = click ;  2 = ignore
+            alpha = 0.1; epsilon_max = 0.9; epsilon_min = 0.1; epsilon_decay = 0.99
             self.agent = QAgent(alpha, epsilon_max, epsilon_min, epsilon_decay)
             self.run_episode(True, 1000000)
             self.rl_save()
@@ -509,43 +494,34 @@ class MainWindow(QMainWindow):
             unproductive_moves = 0
             while not self.win():
                 QApplication.processEvents()
-
                 #force game over after more than 200 unproductive moves
                 if unproductive_moves > 200:
                     self.update_status(STATUS_FAILED)
                     break
-
                 #select a random tile
                 x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
                 tile = self.grid.itemAtPosition(y, x).widget()
-
                 #tile has been already picked
                 if tile.is_revealed:
                     unproductive_moves += 1
-
                 #get a 3x3 cluster around the tile
                 cluster = self.get_surrounding(x, y)
-
                 #get current state of the cluster
                 for i in range(len(cluster)):
                     if cluster[i].is_revealed:
                         cluster[i] = cluster[i].get_value()
                     else:
                         cluster[i] = -3
-
                 #get the agent action
                 action = self.agent.act(cluster, training)
-
                 #tile clicked
                 if action == 1:
                     tile.click()
                     tile.reveal()
                 #action == 2 -> tile ignored
-
                 #skip
                 if action == -1:
                     continue
-
                 #click + not mine
                 if not tile.is_mine and tile.is_revealed:
                     if training:
@@ -564,7 +540,6 @@ class MainWindow(QMainWindow):
                 elif tile.is_mine and not tile.is_revealed:
                     if training:
                         self.agent.learn(cluster, 2, 1, False)
-
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
@@ -589,6 +564,7 @@ class MainWindow(QMainWindow):
     def load_model(self):
         model = keras.models.load_model('model/model_cnn')
         return model
+
     """
     Define the architecture of the CNN
     """
@@ -648,9 +624,9 @@ class MainWindow(QMainWindow):
     Steps to do in order to train the model with all the different game
     """
     def button_AI_learn_pressed(self):
-        avg_score = 0; episodes = 10; datasetSize = 2000000
+        avg_score = 0; episodes = 10; datasetSize = 3000000
         res = self.warning_before_learn()
-        if(res == 1024):
+        if(res == 1024): # +/- 4h of training
             shutil.rmtree('model/model_cnn')
             Xfin, yfin = self.create_game(datasetSize)
             n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
@@ -678,7 +654,6 @@ class MainWindow(QMainWindow):
         plt.plot(history.history['val_loss'], label='error test')
         plt.xlabel('epoch')
         plt.show()
-
 
     """
     Code execute to test the prediction made by the model
@@ -756,21 +731,18 @@ class MainWindow(QMainWindow):
                 revealed = self.get_revealed_tiles()
                 SCORE = len(revealed)
                 self.score.setText(str(SCORE))
-
                 if tile is not None and tile.is_mine and tile.is_revealed:
                     self.update_status(STATUS_FAILED)
                     break
                 tmp = list()
                 for item in revealed:
                     tmp.append(self.get_surrounding(item.x, item.y))
-
                 # Filter unneeded
                 neighborhoods = [[] for i in range(len(tmp))]
                 for i, neighborhood in enumerate(tmp):
                     for neighbor in neighborhood:
                         if not neighbor.is_revealed:
                             neighborhoods[i].append(neighbor)
-
                 # revealed = [tile for i, tile in enumerate(
                 #     revealed) if neighborhoods[i] != []]
                 # neighborhoods = [
@@ -784,7 +756,6 @@ class MainWindow(QMainWindow):
                     tile.click()
                     tile.reveal()
                     continue
-
                 # perimeter_d = dict.fromkeys(self.get_perimeter(), 0)
                 perimeter = self.get_perim_as_tile()
                 final_perimeter = set()
@@ -797,7 +768,6 @@ class MainWindow(QMainWindow):
                     if check:
                         final_perimeter.add(tile)
                 perimeter_neighbors = set()
-
                 # Preprocess neighboring tiles
                 for tile in perimeter:
                     surroundings = tile.neighbors
@@ -809,9 +779,11 @@ class MainWindow(QMainWindow):
                 if certainty == 1:
                     for tile in free:
                         tile.click()
+                        tile.reveal()
                 else:
                     tile = random.choice(free)
                     tile.click()
+                    tile.reveal()
                     if tile.is_mine:
                         self.update_status(STATUS_FAILED)
                         continue
@@ -829,7 +801,6 @@ class MainWindow(QMainWindow):
                 # tile = self.grid.itemAtPosition(item[1], item[0]).widget()
                 # tile.click()
                 # tile.reveal()
-
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
@@ -837,9 +808,7 @@ class MainWindow(QMainWindow):
             #print("AVERAGE SCORE/MAX SCORE: {0}/{1}".format(str(round((previous + SCORE) / (episode + 1), 2)), str(max_score)))
             previous += SCORE
             self.reset_map()
-
         print("WIN RATE:" + str(wins/nb_game*100))
-
 
 if __name__ == '__main__':
     app = QApplication([])
