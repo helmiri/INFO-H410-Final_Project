@@ -64,7 +64,6 @@ class Tile(QWidget):
         self.marked = False
         self.update()
 
-
     """
     Drawing stuff about the tile
     """
@@ -76,9 +75,7 @@ class Tile(QWidget):
             color = self.palette().color(QPalette.Background)
             outer, inner = color, color
         elif self.marked:
-            if self.type == -1:
-                outer, inner = QColor('#878787'), QColor('#202020')
-            elif self.type == 1:
+            if self.type == 1:
                 outer, inner = QColor('#1261b5'), QColor('#1261b5')
             else:
                 outer, inner = QColor('#b51248'), QColor('#b51248')
@@ -162,6 +159,16 @@ class Tile(QWidget):
     def add_neighbors(self, neighbors):
         self.neighbors = set(neighbors)
 
+    def mark(self, type):
+        self.marked = True
+        self.type = type
+        self.update()
+
+    def unmark(self):
+        self.marked = False
+        self.type = None
+        self.update()
+
     def __hash__(self):
         return hash((self.x, self.y))
 
@@ -177,13 +184,3 @@ class Tile(QWidget):
 
     def __str__(self):
         return"({0}, {1})".format(self.x, self.y)
-
-    def mark(self, type):
-        self.marked = True
-        self.type = type
-        self.update()
-
-    def unmark(self):
-        self.marked = False
-        self.type = None
-        self.update()

@@ -67,7 +67,7 @@ STATUS_FAILED = 2
 STATUS_SUCCESS = 3
 
 # ===============================================================================
-# GUI AND AI
+# GUI
 # ===============================================================================
 """
 Main class use for GUI and the AI managment
@@ -116,9 +116,6 @@ class MainWindow(QMainWindow):
         self.button_AI_play = QPushButton("CNN Play")
         self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
 
-        self.button_AI_test = QPushButton("CNN Test")
-        self.button_AI_test.pressed.connect(self.button_AI_test_pressed)
-
         self.button_solve = QPushButton("Solve")
         self.button_solve.pressed.connect(self.button_solve_pressed)
 
@@ -141,7 +138,6 @@ class MainWindow(QMainWindow):
 
         hb1.addWidget(self.button_AI_learn)
         hb1.addWidget(self.button_AI_play)
-        hb1.addWidget(self.button_AI_test)
 
         hb2.addWidget(self.button_RL_learn)
         hb2.addWidget(self.button_RL_play)
@@ -483,6 +479,22 @@ class MainWindow(QMainWindow):
                     tile.reveal()
 
     """
+    # WARNING: Dialog window
+    """
+    def warning_before_learn(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("Warning !")
+        msg.setText("Warning !")
+        msg.setInformativeText("Attention, you will delete the previous saved model and create a new one, do you want to continue? ")
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        retval = msg.exec_()
+        return retval
+
+# ===============================================================================
+# REINFORCEMENT LEARNING
+# ===============================================================================
+    """
     Save the trained RL agent
     """
     def rl_save(self):
@@ -556,7 +568,6 @@ class MainWindow(QMainWindow):
 
                 #get the agent action
                 action = self.agent.act(cluster, training)
-                #print("action : ", action)
 
                 #tile clicked
                 if action == 1:
@@ -596,6 +607,9 @@ class MainWindow(QMainWindow):
                 nb_wins.append(wins)
         print("WIN RATE:" + str(wins/nb_game*100))
 
+# ===============================================================================
+# CONVOLUTIONAL NEURAL NETWORK
+# ===============================================================================
     """
     Save the model of CNN
     """
@@ -664,19 +678,6 @@ class MainWindow(QMainWindow):
         return Xfin, yfin
 
     """
-    # WARNING: Dialog window
-    """
-    def warning_before_learn(self):
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Warning !")
-        msg.setText("Warning !")
-        msg.setInformativeText("Attention, you will delete the previous saved model and create a new one, do you want to continue? ")
-        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-        retval = msg.exec_()
-        return retval
-
-    """
     Steps to do in order to train the model with all the different game
     """
     def button_AI_learn_pressed(self):
@@ -736,7 +737,7 @@ class MainWindow(QMainWindow):
                 fpos, mpos = supersmart.flag(yhat, peri, CURRENT_REVEALED)
                 if(fpos[0]!=None):
                     ftile = self.grid.itemAtPosition(fpos[1], fpos[0]).widget()
-                    mtile.mark(-1)
+                    mtile.unmark()
                     ftile.flag()
                 if(mpos[0]!=None):
                     mtile = self.grid.itemAtPosition(mpos[1], mpos[0]).widget()
@@ -755,7 +756,7 @@ class MainWindow(QMainWindow):
         print("Avg. score : ", avg_score/nb_test_run)
 
     """
-    Make the different action of a normal turn in game like it is a human who is playing (click etc)
+    Make the different action of a normal turn in game
     """
     def AI_turn(self, x, y):
         global SCORE
@@ -770,47 +771,9 @@ class MainWindow(QMainWindow):
                 SCORE += 1
                 self.score.setText(str(SCORE))
 
-    """
-    Simple function link to a button to test stuff about the AI
-    """
-    def button_AI_test_pressed(self):
-        #global model
-        model = self.load_model()
-
-        CURRENT_REVEALED = self.get_pos_of_revealed()
-        #testX = np.array([normalize(self.get_tiles_revealed_value())])
-        testX = np.array([self.get_tiles_revealed_value()])
-        test_x = np.array(testX[0].transpose())
-        test_x = test_x.reshape(1, LEVEL[0], LEVEL[0], 1)
-        yhat = model.predict(test_x)
-        # Given the current board the model predict the prob of mine with yhat
-        self.plot_heatmap(yhat[0])
-        # Give the positions of tile around the revealed tiles
-        peri = self.get_perimeter()
-        # Choose the best position to click given the prediction and the perimeter
-        x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
-        mtile = self.grid.itemAtPosition(y, x).widget()
-        mtile.mark(1)
-        fx, fy = supersmart.flag(yhat, peri, CURRENT_REVEALED)
-        if(fx!=None):
-            ftile = self.grid.itemAtPosition(fy, fx).widget()
-            ftile.flag()
-        self.win()
-
-    def plot_heatmap(self, matrix):
-        fig, ax = plt.subplots()
-        im = ax.imshow(matrix)
-        ax.set_xticks(np.arange(len(matrix)))
-        ax.set_yticks(np.arange(len(matrix)))
-        for i in range(len(matrix)):
-            for j in range(len(matrix)):
-                prob = round(float(matrix[i, j]), 3)
-                text = ax.text(j, i, prob ,ha="center", va="center", color="w")
-        ax.set_title("Probability of mine")
-        fig.tight_layout()
-        plt.show()
-
-
+# ===============================================================================
+# ALGORITHMIC SOLVER
+# ===============================================================================
     def button_solve_pressed(self):
         wins = 0
         nb_game = 1000
