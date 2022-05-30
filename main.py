@@ -696,7 +696,6 @@ class MainWindow(QMainWindow):
     Make the different action of a normal turn in game
     """
     def AI_turn(self, x, y):
-        #global SCORE
         tile = self.grid.itemAtPosition(y, x).widget()
         if(not tile.is_revealed):
             tile.click()
@@ -704,9 +703,6 @@ class MainWindow(QMainWindow):
             if tile.is_mine:  # GAMEOVER
                 tile.ohno.emit()
                 self.update_status(STATUS_FAILED)
-            #else:
-                #SCORE += 1
-                #self.score.setText(str(SCORE))
 
 # ===============================================================================
 # ALGORITHMIC SOLVER
