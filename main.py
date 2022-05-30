@@ -144,6 +144,11 @@ class MainWindow(QMainWindow):
         vb.addWidget(self.pbar)
         self.setCentralWidget(w)
 
+        self.winMsg = QMessageBox()
+        self.winMsg.setWindowTitle("Congratulations !")
+        self.winMsg.setText("<p align='center'; style='font-size:11pt'> You won !")
+        self.winMsg.setStyleSheet("QLabel{min-width: 200px;}")
+
         self.init_map()
         self.update_status(STATUS_READY)
         self.reset_map()
@@ -399,6 +404,9 @@ class MainWindow(QMainWindow):
         revealed = self.get_revealed_tiles()
         SCORE = len(revealed)
         self.score.setText(str(SCORE))
+        if self.manual_play and self.win():
+            self.winMsg.exec_()
+            self.reset_map()
 
     """
     Update the manual play boolean
