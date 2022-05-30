@@ -3,7 +3,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
-
 #===============================================================================
 # GLOBAL VARIABLES
 #===============================================================================
@@ -45,7 +44,7 @@ class Tile(QWidget):
     def __init__(self, x, y, level, *args, **kwargs):
         super(Tile, self).__init__(*args, **kwargs)
         screen_size = QApplication.primaryScreen().availableSize()
-        self.tilesize = (screen_size.height() - 200) // max(level[0], 16)
+        self.tilesize = screen_size.height() // (level[0]*2)
         self.setFixedSize(QSize(self.tilesize, self.tilesize))
         self.x = x
         self.y = y
@@ -63,7 +62,6 @@ class Tile(QWidget):
         self.count = 0
         self.marked = False
         self.update()
-
 
     """
     Drawing stuff about the tile
@@ -88,7 +86,7 @@ class Tile(QWidget):
         p.setPen(pen)
         p.drawRect(r)
         if self.is_revealed:
-            if self.is_start:                
+            if self.is_start:
                 p.drawPixmap(r, QPixmap(IMG_START))
             elif self.is_mine:
                 p.drawPixmap(r, QPixmap(IMG_BOMB))
@@ -160,6 +158,16 @@ class Tile(QWidget):
     def add_neighbors(self, neighbors):
         self.neighbors = set(neighbors)
 
+    def mark(self, type):
+        self.marked = True
+        self.type = type
+        self.update()
+
+    def unmark(self):
+        self.marked = False
+        self.type = None
+        self.update()
+
     def __hash__(self):
         return hash((self.x, self.y))
 
@@ -175,13 +183,3 @@ class Tile(QWidget):
 
     def __str__(self):
         return"({0}, {1})".format(self.x, self.y)
-
-    def mark(self, type):
-        self.marked = True
-        self.type = type
-        self.update()
-
-    def unmark(self):
-        self.marked = False
-        self.type = None
-        self.update()
