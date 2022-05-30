@@ -8,13 +8,14 @@ from solver import *
 from rl import QAgent
 from tile import Tile
 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Dropout
 from keras.layers import Reshape
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
-
 from tensorflow.python.client import device_lib
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
