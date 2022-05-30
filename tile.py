@@ -146,8 +146,7 @@ class Tile(QWidget):
             self.click()
             if self.is_mine:
                 self.ohno.emit()
-            else:
-                self.score.emit()
+        self.score.emit()
 
     def get_mark(self):
         return self.type
