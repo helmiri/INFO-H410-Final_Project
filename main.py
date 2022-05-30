@@ -94,7 +94,8 @@ class MainWindow(QMainWindow):
         hb2 = QHBoxLayout()
 
         self.cb = QComboBox()
-        self.cb.addItems(["50", "100", "500", "1000"])
+        self.cb.addItems(["50 games", "100 games", "500 games", "1000 games"])
+        self.cb.setToolTip("Number of games for the learning phase.")
         self.button_solve = QPushButton("Solver Play")
         self.button_solve.pressed.connect(self.button_solve_pressed)
         self.button_AI_learn = QPushButton("CNN Learn")
@@ -373,7 +374,7 @@ class MainWindow(QMainWindow):
                 if not tile.is_mine:
                     tile.click()
     """
-    Start the timer in at the first click and update the current status
+    Start the game and update the current status
     """
     def trigger_start(self, *args):
         if self.status != STATUS_PLAYING:
