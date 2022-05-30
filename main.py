@@ -99,12 +99,10 @@ class MainWindow(QMainWindow):
         self.button_solve.pressed.connect(self.button_solve_pressed)
         self.button_AI_learn = QPushButton("CNN Learn")
         self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
-        self.button_AI_learn.setStyleSheet('QPushButton {color: orange;}')
         self.button_AI_play = QPushButton("CNN Play")
         self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
         self.button_RL_learn = QPushButton("RL learn")
         self.button_RL_learn.pressed.connect(self.rl_learn)
-        self.button_RL_learn.setStyleSheet('QPushButton {color: orange;}')
         self.button_RL_play = QPushButton("RL play")
         self.button_RL_play.pressed.connect(self.rl_play)
         self.score = QLabel()
@@ -685,6 +683,7 @@ class MainWindow(QMainWindow):
                 self.AI_turn(x, y)
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
+                #self.button_AI_play.setStyleSheet('QPushButton {color: green;}')
             avg_score += score
             self.reset()
             supersmart.reset()
@@ -789,7 +788,7 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     app = QApplication([])
     app.setStyle("Fusion")
-    QToolTip.setFont(QFont('SansSerif', 5))
+    app.setFont(QFont('SansSerif', 8))
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(53, 53, 53))
     palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
