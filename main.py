@@ -93,14 +93,18 @@ class MainWindow(QMainWindow):
         hb1 = QHBoxLayout()
         hb2 = QHBoxLayout()
 
-        self.button_solve = QPushButton("Solve")
+        self.cb = QComboBox()
+        self.cb.addItems(["50", "100", "500", "1000"])
+        self.button_solve = QPushButton("Solver Play")
         self.button_solve.pressed.connect(self.button_solve_pressed)
         self.button_AI_learn = QPushButton("CNN Learn")
         self.button_AI_learn.pressed.connect(self.button_AI_learn_pressed)
+        self.button_AI_learn.setStyleSheet('QPushButton {color: orange;}')
         self.button_AI_play = QPushButton("CNN Play")
         self.button_AI_play.pressed.connect(self.button_AI_play_pressed)
         self.button_RL_learn = QPushButton("RL learn")
         self.button_RL_learn.pressed.connect(self.rl_learn)
+        self.button_RL_learn.setStyleSheet('QPushButton {color: orange;}')
         self.button_RL_play = QPushButton("RL play")
         self.button_RL_play.pressed.connect(self.rl_play)
         self.score = QLabel()
@@ -124,6 +128,7 @@ class MainWindow(QMainWindow):
         hb.addWidget(self.score)
         hb.addWidget(status_text)
         hb.addWidget(self.status_text)
+        hb0.addWidget(self.cb)
         hb0.addWidget(self.button_solve)
         hb1.addWidget(self.button_AI_learn)
         hb1.addWidget(self.button_AI_play)
@@ -492,7 +497,7 @@ class MainWindow(QMainWindow):
             with open('model/q_agent_config_1M_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
-        self.run_episode(False, 500)
+        self.run_episode(False, int(self.cb.currentText()))
 
     """
     Play the game with a RL agent
@@ -650,7 +655,7 @@ class MainWindow(QMainWindow):
         avg_score = 0
         self.update_status(STATUS_READY)
         model = self.load_model()
-        nb_test_run = 500
+        nb_test_run = int(self.cb.currentText())
         wins = 0
         for i in tqdm(range(0, nb_test_run),  desc = "Playing games"):
             self.update_pbar(i/nb_test_run*100, False)
@@ -708,7 +713,7 @@ class MainWindow(QMainWindow):
 # ===============================================================================
     def button_solve_pressed(self):
         wins = 0
-        nb_game = 500
+        nb_game = int(self.cb.currentText())
         max_score = LEVEL[0]*LEVEL[0] - LEVEL[1]
         previous = 0
         scores = list()
