@@ -47,9 +47,7 @@ LEVEL = LEVELS[0]
 
 model = Sequential()
 supersmart = AI()
-seed = 7
-np.random.seed(seed)
-random.seed(seed)
+SEED = 7
 
 NUM_COLORS = {
     0: QColor('#4CAF50'),
@@ -70,18 +68,73 @@ STATUS_SUCCESS = 3
 # ===============================================================================
 # GUI
 # ===============================================================================
+
+"""
+    Difficulty selection prompt
+"""
+class DifficultySelector(QWidget):
+    def __init__(self) -> None:
+        global LEVEL
+        super().__init__()
+
+        self.setWindowTitle("Minesweeper AI")
+        self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        self.setWindowIcon(QIcon("./images/bomb.png"))
+        self.button_confirm = QPushButton("Confirm")
+        self.button_confirm.pressed.connect(self.button_confirm_pressed)
+        self.label = QLabel("Difficulty")
+        self.seedLabel = QLabel("Seed")
+        self.dropdown = QComboBox()
+        self.dropdown.addItems(["Beginner", "Advanced", "Expert"])
+        self.seedBox = QSpinBox()
+        vb = QVBoxLayout()
+        difficultyBox = QHBoxLayout()
+        difficultyBox.addWidget(self.label)
+        difficultyBox.addWidget(self.dropdown)
+
+        seedBox = QHBoxLayout()
+        seedBox.addWidget(self.seedLabel)
+        seedBox.addWidget(self.seedBox)
+        vb.addLayout(difficultyBox)
+        vb.addLayout(seedBox)
+        vb.addWidget(self.button_confirm)
+        self.setLayout(vb)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
+        self.setFixedWidth(400)
+        self.show()
+        self.setFixedSize(self.size())
+
+    def button_confirm_pressed(self):
+        global LEVEL
+        global LEVELS
+        global SEED
+        LEVEL = LEVELS[self.dropdown.currentIndex()]
+        seed = self.seedBox.value()
+        np.random.seed(seed)
+        random.seed(seed)
+        self.close()
+
 """
 Main class use for GUI and the AI managment
 """
+
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         global LEVEL
         super(MainWindow, self).__init__(*args, **kwargs)
+
+        difficulty_selector = DifficultySelector()
+        # Wait until closed
+        loop = QEventLoop() 
+        difficulty_selector.destroyed.connect(loop.quit)
+        loop.exec() 
+        
         self.setWindowTitle("Minesweeper AI")
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowIcon(QIcon("./images/bomb.png"))
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
-        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
         self.b_size, self.n_mines = LEVEL
         self.agent = None
         self.manual_play = False
@@ -146,7 +199,9 @@ class MainWindow(QMainWindow):
         self.update_status(STATUS_READY)
 
         supersmart.setboardsize(self.b_size)
+        
         self.show()
+        self.setFixedSize(self.size())
 
     """
     Init the board and connect signal of each tile to the correct function
@@ -775,11 +830,13 @@ class MainWindow(QMainWindow):
                     tile.flag()
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-            self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
+            self.status_text.setText(str(round(wins/(episode+1)*100,2))+"%")
             previous += SCORE
+            print("AVERAGE SCORE:" + str(round(previous/(episode+1)/max_score*100,2)))
             self.reset_map()
         self.update_pbar(0, True)
         print("WIN RATE:" + str(wins/nb_game*100))
+        print("AVERAGE SCORE:" + str(round(previous/max_score*100,2)))
 
 
 if __name__ == '__main__':
