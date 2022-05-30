@@ -457,7 +457,7 @@ class MainWindow(QMainWindow):
     def update_pbar(self, value, reset=False):
         if(not reset):
             self.pbar.show()
-            self.pbar.setValue(value)
+            self.pbar.setValue(int(value))
         else:
             self.pbar.setValue(0)
             self.pbar.hide()
@@ -497,8 +497,6 @@ class MainWindow(QMainWindow):
     Play the game with a RL agent
     """
     def run_episode(self, training, nb_game):
-        nb_states = []
-        nb_wins = []
         wins = 0
         if training:
             description = 'Training progress'
@@ -547,9 +545,6 @@ class MainWindow(QMainWindow):
                 wins += 1
             self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
             self.reset_map()
-            if (episode%10000) == 0:
-                nb_states.append(len(self.agent.q_table))
-                nb_wins.append(wins)
         self.update_pbar(0, True)
         print("WIN RATE:" + str(wins/nb_game*100))
 
@@ -689,6 +684,7 @@ class MainWindow(QMainWindow):
         self.update_pbar(0, True)
         print("WIN RATE:" + str(wins/nb_test_run*100)+ "%")
         print("Avg. score : ", avg_score/nb_test_run)
+
 
     """
     Make the different action of a normal turn in game
