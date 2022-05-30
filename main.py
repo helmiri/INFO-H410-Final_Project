@@ -484,10 +484,9 @@ class MainWindow(QMainWindow):
             self.rl_save()
 
     """
-    Play using the trained RL agent
+    Play using the trained RL agent : load a trained agent if no new agent has been created
     """
     def rl_play(self):
-        #load a trained agent if no new agent has been created
         if self.agent == None:
             with open('model/q_agent_config_1M_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
@@ -510,50 +509,38 @@ class MainWindow(QMainWindow):
             unproductive_moves = 0
             while not self.win():
                 QApplication.processEvents()
-                #force game over after more than 200 unproductive moves
-                if unproductive_moves > 200:
+                if unproductive_moves > 200: #force game over after more than 200 unproductive moves
                     self.update_status(STATUS_FAILED)
                     break
                 #select a random tile
                 x, y = random.randint(0, self.b_size - 1), random.randint(0, self.b_size - 1)
                 tile = self.grid.itemAtPosition(y, x).widget()
-                #tile has been already picked
-                if tile.is_revealed:
+                if tile.is_revealed: #tile has been already picked
                     unproductive_moves += 1
                 #get a 3x3 cluster around the tile
                 cluster = self.get_surrounding(x, y)
-                #get current state of the cluster
-                for i in range(len(cluster)):
+                for i in range(len(cluster)): #get current state of the cluster
                     if cluster[i].is_revealed:
                         cluster[i] = cluster[i].get_value()
                     else:
                         cluster[i] = -3
                 #get the agent action
                 action = self.agent.act(cluster, training)
-                #tile clicked
-                if action == 1:
+                if action == 1: #tile clicked
                     tile.click()
                     tile.reveal()
-                #action == 2 -> tile ignored
-                #skip
-                if action == -1:
-                    continue
-                #click + not mine
-                if not tile.is_mine and tile.is_revealed:
+                if not tile.is_mine and tile.is_revealed: #click + not mine
                     if training:
                         self.agent.learn(cluster, 1, 1, False)
-                #click + mine
-                elif tile.is_mine and tile.is_revealed:
+                elif tile.is_mine and tile.is_revealed: #click + mine
                     if training:
                         self.agent.learn(cluster, 1, -1, True)
                     self.update_status(STATUS_FAILED)
                     break
-                #ignore + not mine
-                elif not tile.is_mine and not tile.is_revealed:
+                elif not tile.is_mine and not tile.is_revealed: #ignore + not mine
                     if training:
                         self.agent.learn(cluster, 2, -1, False)
-                #ignore + mine
-                elif tile.is_mine and not tile.is_revealed:
+                elif tile.is_mine and not tile.is_revealed: #ignore + mine
                     if training:
                         self.agent.learn(cluster, 2, 1, False)
             if self.get_status() == STATUS_SUCCESS:
@@ -770,8 +757,7 @@ class MainWindow(QMainWindow):
                     if check:
                         final_perimeter.add(tile)
                 perimeter_neighbors = set()
-                # Preprocess neighboring tiles
-                for tile in perimeter:
+                for tile in perimeter: # Preprocess neighboring tiles
                     surroundings = tile.neighbors
                     for n_tile in surroundings:
                         if n_tile.is_revealed:
