@@ -115,6 +115,9 @@ class MainWindow(QMainWindow):
         self.status_text.setText("0%")
         score = QLabel("Score : ")
         status_text = QLabel("Win rate : ")
+        self.pbar = QProgressBar()
+        self.pbar.setValue(0)
+        self.pbar.hide()
 
         hb.addWidget(score)
         hb.addWidget(self.score)
@@ -133,6 +136,7 @@ class MainWindow(QMainWindow):
         self.grid.setSpacing(5)
         vb.addLayout(self.grid)
         w.setLayout(vb)
+        vb.addWidget(self.pbar)
         self.setCentralWidget(w)
 
         self.init_map()
@@ -447,6 +451,17 @@ class MainWindow(QMainWindow):
         retval = msg.exec_()
         return retval
 
+    """
+    Update the progress bar while doing training/playing
+    """
+    def update_pbar(self, value, reset=False):
+        if(not reset):
+            self.pbar.show()
+            self.pbar.setValue(value)
+        else:
+            self.pbar.setValue(0)
+            self.pbar.hide()
+
 # ===============================================================================
 # REINFORCEMENT LEARNING
 # ===============================================================================
@@ -477,7 +492,7 @@ class MainWindow(QMainWindow):
             with open('model/q_agent_config_1M_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
-        self.run_episode(False, 1000)
+        self.run_episode(False, 500)
 
     """
     Play the game with a RL agent
@@ -491,6 +506,7 @@ class MainWindow(QMainWindow):
         else:
             description = 'Testing progress'
         for episode in tqdm(range(nb_game), desc = description):
+            self.update_pbar(episode/nb_game*100, False)
             unproductive_moves = 0
             while not self.win():
                 QApplication.processEvents()
@@ -547,6 +563,7 @@ class MainWindow(QMainWindow):
             if (episode%10000) == 0:
                 nb_states.append(len(self.agent.q_table))
                 nb_wins.append(wins)
+        self.update_pbar(0, True)
         print("WIN RATE:" + str(wins/nb_game*100))
 
 # ===============================================================================
@@ -581,9 +598,7 @@ class MainWindow(QMainWindow):
           keras.layers.MaxPooling2D(pool_size=pool_size),
           keras.layers.Flatten(),
           keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
-          #keras.layers.Dropout(0.01),
           keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
-          #keras.layers.Dropout(0.01),
           keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
           keras.layers.Reshape((matrixSize, matrixSize))
         ])
@@ -624,10 +639,13 @@ class MainWindow(QMainWindow):
     Steps to do in order to train the model with all the different game
     """
     def button_AI_learn_pressed(self):
-        avg_score = 0; episodes = 10; datasetSize = 3000000
+        avg_score = 0; episodes = 10; datasetSize = 5000000
         res = self.warning_before_learn()
-        if(res == 1024): # +/- 4h of training
-            shutil.rmtree('model/model_cnn')
+        if(res == 1024): # +/- 7h of training (3000000)
+            try:
+                shutil.rmtree('model/model_cnn')
+            except:
+                pass
             Xfin, yfin = self.create_game(datasetSize)
             n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
             model = self.set_model(n_inputs)
@@ -649,9 +667,10 @@ class MainWindow(QMainWindow):
         avg_score = 0
         self.update_status(STATUS_READY)
         model = self.load_model()
-        nb_test_run = 1000
+        nb_test_run = 500
         wins = 0
         for i in tqdm(range(0, nb_test_run),  desc = "Playing games"):
+            self.update_pbar(i/nb_test_run*100, False)
             OLDSCORE = 0
             while not self.win():
                 QApplication.processEvents()
@@ -680,6 +699,7 @@ class MainWindow(QMainWindow):
             SCORE = 0
             self.reset()
             supersmart.reset()
+        self.update_pbar(0, True)
         print("WIN RATE:" + str(wins/nb_test_run*100)+ "%")
         print("Avg. score : ", avg_score/nb_test_run)
 
@@ -704,12 +724,13 @@ class MainWindow(QMainWindow):
 # ===============================================================================
     def button_solve_pressed(self):
         wins = 0
-        nb_game = 1000
+        nb_game = 500
         max_score = LEVEL[0]*LEVEL[0] - LEVEL[1]
         previous = 0
         scores = list()
         win_history = list()
         for episode in tqdm(range(nb_game), desc = "Solving games"):
+            self.update_pbar(episode/nb_game*100, False)
             tile = None
             SCORE = 0
             while not self.win():
@@ -729,10 +750,6 @@ class MainWindow(QMainWindow):
                     for neighbor in neighborhood:
                         if not neighbor.is_revealed:
                             neighborhoods[i].append(neighbor)
-                # revealed = [tile for i, tile in enumerate(
-                #     revealed) if neighborhoods[i] != []]
-                # neighborhoods = [
-                #     neighborhood for neighborhood in neighborhoods if neighborhood != []]
                 tile = rule_1(revealed, neighborhoods)
                 if tile != None:
                     tile.flag()
@@ -742,7 +759,6 @@ class MainWindow(QMainWindow):
                     tile.click()
                     tile.reveal()
                     continue
-                # perimeter_d = dict.fromkeys(self.get_perimeter(), 0)
                 perimeter = self.get_perim_as_tile()
                 final_perimeter = set()
                 for tile in perimeter:
@@ -760,7 +776,6 @@ class MainWindow(QMainWindow):
                     for n_tile in surroundings:
                         if n_tile.is_revealed:
                             perimeter_neighbors.add(n_tile)
-
                 free, flags, certainty = rule3(final_perimeter, perimeter_neighbors)
                 if certainty == 1:
                     for tile in free:
@@ -775,26 +790,14 @@ class MainWindow(QMainWindow):
                         continue
                 for tile in flags:
                     tile.flag()
-
-                # tile = rule3(dict(zip(revealed, neighborhoods)),
-                #              perimeter_neighbors)
-                # if tile != None:
-                #     tile.click()
-                #     tile.reveal()
-                # coords = naive(revealed, tmp, perimeter_d)
-                # coords = dict(zip(perimeter, perimeter_neighbors))
-                # item = random.choice(coords)
-                # tile = self.grid.itemAtPosition(item[1], item[0]).widget()
-                # tile.click()
-                # tile.reveal()
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
-            #print("WINS/TOTAL: " + str(wins) + "/" + str(episode + 1))
-            #print("AVERAGE SCORE/MAX SCORE: {0}/{1}".format(str(round((previous + SCORE) / (episode + 1), 2)), str(max_score)))
             previous += SCORE
             self.reset_map()
+        self.update_pbar(0, True)
         print("WIN RATE:" + str(wins/nb_game*100))
+
 
 if __name__ == '__main__':
     app = QApplication([])
