@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowIcon(QIcon("./images/bomb.png"))
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
-        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
         self.b_size, self.n_mines = LEVEL
         self.agent = None
         self.manual_play = False
@@ -109,25 +109,25 @@ class MainWindow(QMainWindow):
         self.button_RL_play.pressed.connect(self.rl_play)
         self.score = QLabel()
         self.score.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-        self.status_text = QLabel()
-        self.status_text.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.winrate = QLabel()
+        self.winrate.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         f = self.score.font()
         f.setPointSize(10)
         f.setWeight(75)
         self.score.setFont(f)
-        self.status_text.setFont(f)
+        self.winrate.setFont(f)
         self.score.setText(str(SCORE))
-        self.status_text.setText("0%")
-        score = QLabel("Score : ")
-        status_text = QLabel("Win rate : ")
+        self.winrate.setText("0%")
+        self.score_text = QLabel("Score : ")
+        self.winrate_text = QLabel("Win rate : ")
         self.pbar = QProgressBar()
         self.pbar.setValue(0)
         self.pbar.hide()
 
-        hb.addWidget(score)
+        hb.addWidget(self.score_text)
         hb.addWidget(self.score)
-        hb.addWidget(status_text)
-        hb.addWidget(self.status_text)
+        hb.addWidget(self.winrate_text)
+        hb.addWidget(self.winrate)
         hb0.addWidget(self.cb)
         hb0.addWidget(self.button_solve)
         hb1.addWidget(self.button_AI_learn)
@@ -406,6 +406,9 @@ class MainWindow(QMainWindow):
     """
     def update_manual(self):
         self.manual_play = True
+        self.score_text.setText("Score : ")
+        self.score.setText("0")
+        self.winrate.setText("0%")
 
     """
     Code execute when the game emit the 'ohno' signal which and the game and restart a new one
@@ -503,14 +506,14 @@ class MainWindow(QMainWindow):
     Play the game with a RL agent
     """
     def run_episode(self, training, nb_game):
-        wins = 0
+        wins = 0; avg_score = 0
         if training:
             description = 'Training progress'
         else:
             description = 'Testing progress'
         for episode in tqdm(range(nb_game), desc = description):
             self.update_pbar(episode/nb_game*100, False)
-            unproductive_moves = 0
+            unproductive_moves = 0; score = 0
             while not self.win():
                 QApplication.processEvents()
                 if unproductive_moves > 200: #force game over after more than 200 unproductive moves
@@ -547,12 +550,16 @@ class MainWindow(QMainWindow):
                 elif tile.is_mine and not tile.is_revealed: #ignore + mine
                     if training:
                         self.agent.learn(cluster, 2, 1, False)
+                revealed = self.get_revealed_tiles()
+                score = len(revealed)
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-            self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
+            avg_score += score
             self.reset_map()
+            self.winrate.setText(str(round(wins/nb_game*100,2))+"%")
+            self.score_text.setText("Average score : ")
+            self.score.setText(str(round(avg_score/nb_game, 2)))
         self.update_pbar(0, True)
-        print("WIN RATE:" + str(wins/nb_game*100))
 
 # ===============================================================================
 # CONVOLUTIONAL NEURAL NETWORK
@@ -627,7 +634,7 @@ class MainWindow(QMainWindow):
     Steps to do in order to train the model with all the different game
     """
     def button_AI_learn_pressed(self):
-        avg_score = 0; episodes = 10; datasetSize = 5000000
+        episodes = 10; datasetSize = 5000000
         res = self.warning_before_learn()
         if(res == 1024): # +/- 7h of training (3000000)
             try:
@@ -651,15 +658,12 @@ class MainWindow(QMainWindow):
     Code execute to test the prediction made by the model
     """
     def button_AI_play_pressed(self):
-        global SCORE
-        avg_score = 0
-        self.update_status(STATUS_READY)
+        avg_score = 0; wins = 0
         model = self.load_model()
-        nb_test_run = int(self.cb.currentText())
-        wins = 0
-        for i in tqdm(range(0, nb_test_run),  desc = "Playing games"):
-            self.update_pbar(i/nb_test_run*100, False)
-            OLDSCORE = 0
+        nb_game = int(self.cb.currentText())
+        for i in tqdm(range(0, nb_game),  desc = "Playing games"):
+            self.update_pbar(i/nb_game*100, False)
+            score = 0
             while not self.win():
                 QApplication.processEvents()
                 testX = np.array([self.get_tiles_revealed_value()])
@@ -668,6 +672,7 @@ class MainWindow(QMainWindow):
                 yhat = model.predict(test_x)
                 peri = self.get_perimeter()
                 CURRENT_REVEALED = self.get_pos_of_revealed()
+                score = len(CURRENT_REVEALED)
                 x, y = supersmart.act(yhat, peri, CURRENT_REVEALED)
                 fpos, mpos = supersmart.flag(yhat, peri, CURRENT_REVEALED)
                 if(fpos[0]!=None):
@@ -677,26 +682,22 @@ class MainWindow(QMainWindow):
                 if(mpos[0]!=None):
                     mtile = self.grid.itemAtPosition(mpos[1], mpos[0]).widget()
                     mtile.mark(0)
-                OLDSCORE = SCORE
                 self.AI_turn(x, y)
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-            self.status_text.setText(str(round(wins/nb_test_run*100,2))+"%")
-            avg_score += OLDSCORE
-            self.update_status(STATUS_READY)
-            SCORE = 0
+            avg_score += score
             self.reset()
             supersmart.reset()
+            self.winrate.setText(str(round(wins/nb_game*100,2))+"%")
+            self.score_text.setText("Average score : ")
+            self.score.setText(str(round(avg_score/nb_game, 2)))
         self.update_pbar(0, True)
-        print("WIN RATE:" + str(wins/nb_test_run*100)+ "%")
-        print("Avg. score : ", avg_score/nb_test_run)
-
 
     """
     Make the different action of a normal turn in game
     """
     def AI_turn(self, x, y):
-        global SCORE
+        #global SCORE
         tile = self.grid.itemAtPosition(y, x).widget()
         if(not tile.is_revealed):
             tile.click()
@@ -704,29 +705,26 @@ class MainWindow(QMainWindow):
             if tile.is_mine:  # GAMEOVER
                 tile.ohno.emit()
                 self.update_status(STATUS_FAILED)
-            else:
-                SCORE += 1
-                self.score.setText(str(SCORE))
+            #else:
+                #SCORE += 1
+                #self.score.setText(str(SCORE))
 
 # ===============================================================================
 # ALGORITHMIC SOLVER
 # ===============================================================================
     def button_solve_pressed(self):
-        wins = 0
+        wins = 0; previous = 0
         nb_game = int(self.cb.currentText())
         max_score = LEVEL[0]*LEVEL[0] - LEVEL[1]
-        previous = 0
         scores = list()
         win_history = list()
         for episode in tqdm(range(nb_game), desc = "Solving games"):
             self.update_pbar(episode/nb_game*100, False)
-            tile = None
-            SCORE = 0
+            tile = None; SCORE = 0
             while not self.win():
                 QApplication.processEvents()
                 revealed = self.get_revealed_tiles()
                 SCORE = len(revealed)
-                self.score.setText(str(SCORE))
                 if tile is not None and tile.is_mine and tile.is_revealed:
                     self.update_status(STATUS_FAILED)
                     break
@@ -780,11 +778,12 @@ class MainWindow(QMainWindow):
                     tile.flag()
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-            self.status_text.setText(str(round(wins/nb_game*100,2))+"%")
-            previous += SCORE
             self.reset_map()
+            self.winrate.setText(str(round(wins/nb_game*100,2))+"%")
+            self.score_text.setText("Average score : ")
+            self.score.setText(str(round(previous/nb_game, 2)))
+            previous += SCORE
         self.update_pbar(0, True)
-        print("WIN RATE:" + str(wins/nb_game*100))
 
 
 if __name__ == '__main__':
