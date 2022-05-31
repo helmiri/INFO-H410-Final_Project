@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
 
         self.cb = QComboBox()
         self.cb.addItems(["50 games", "100 games", "500 games", "1000 games"])
-        self.cb.setToolTip("Number of games for the learning phase.")
+        self.cb.setToolTip("Number of games for the training phase.")
         self.button_solve = QPushButton("Solver Play")
         self.button_solve.pressed.connect(self.button_solve_pressed)
         self.button_AI_learn = QPushButton("CNN Learn")
@@ -525,9 +525,9 @@ class MainWindow(QMainWindow):
             return 50
         elif "100 games" in text:
             return 100
-        elif "500" in text:
+        elif "500 games" in text:
             return 500
-        elif "1000" in text:
+        elif "1000 games" in text:
             return 1000
 
     def warning_before_learn(self):
