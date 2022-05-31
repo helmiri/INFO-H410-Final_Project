@@ -126,10 +126,10 @@ class MainWindow(QMainWindow):
 
         difficulty_selector = DifficultySelector()
         # Wait until closed
-        loop = QEventLoop() 
+        loop = QEventLoop()
         difficulty_selector.destroyed.connect(loop.quit)
-        loop.exec() 
-        
+        loop.exec()
+
         self.setWindowTitle("Minesweeper AI")
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowIcon(QIcon("./images/bomb.png"))
@@ -208,7 +208,7 @@ class MainWindow(QMainWindow):
         self.update_status(STATUS_READY)
 
         supersmart.setboardsize(self.b_size)
-        
+
         self.show()
         self.setFixedSize(self.size())
 
@@ -508,6 +508,19 @@ class MainWindow(QMainWindow):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if tile.is_mine:
                     tile.reveal()
+    """
+    Get the number of game to play
+    """
+    def get_number_of_play(self):
+        text = self.cb.currentText()
+        if "50" in text:
+            return 50
+        elif "100" in text:
+            return 100
+        elif "500" in text:
+            return 500
+        elif "1000" in text:
+            return 1000
 
     """
     # WARNING: Dialog window
@@ -562,7 +575,7 @@ class MainWindow(QMainWindow):
             with open('model/q_agent_config_1M_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
-        self.run_episode(False, int(self.cb.currentText()))
+        self.run_episode(False, self.get_number_of_play())
 
     """
     Play the game with a RL agent
@@ -722,7 +735,7 @@ class MainWindow(QMainWindow):
     def button_AI_play_pressed(self):
         avg_score = 0; wins = 0
         model = self.load_model()
-        nb_game = int(self.cb.currentText())
+        nb_game = self.get_number_of_play()
         for i in tqdm(range(0, nb_game),  desc = "Playing games"):
             self.update_pbar(i/nb_game*100, False)
             score = 0
@@ -773,7 +786,7 @@ class MainWindow(QMainWindow):
 # ===============================================================================
     def button_solve_pressed(self):
         wins = 0; previous = 0
-        nb_game = int(self.cb.currentText())
+        nb_game = self.get_number_of_play()
         max_score = LEVEL[0]*LEVEL[0] - LEVEL[1]
         scores = list()
         win_history = list()
