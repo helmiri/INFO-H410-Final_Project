@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
 
         self.cb = QComboBox()
         self.cb.addItems(["50 games", "100 games", "500 games", "1000 games"])
-        self.cb.setToolTip("Number of games for the learning phase.")
+        self.cb.setToolTip("Number of games for the training phase.")
         self.button_solve = QPushButton("Solver Play")
         self.button_solve.pressed.connect(self.button_solve_pressed)
         self.button_AI_learn = QPushButton("CNN Learn")
