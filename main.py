@@ -85,13 +85,12 @@ class DifficultySelector(QWidget):
         self.label = QLabel("Difficulty")
         self.seedLabel = QLabel("Seed")
         self.dropdown = QComboBox()
-        self.dropdown.addItems(["Beginner", "Advanced", "Expert"])
+        self.dropdown.addItems(["Beginner (8x8)", "Advanced (16x16)", "Expert(24x24)"])
         self.seedBox = QSpinBox()
         vb = QVBoxLayout()
         difficultyBox = QHBoxLayout()
         difficultyBox.addWidget(self.label)
         difficultyBox.addWidget(self.dropdown)
-
         seedBox = QHBoxLayout()
         seedBox.addWidget(self.seedLabel)
         seedBox.addWidget(self.seedBox)
@@ -118,7 +117,6 @@ class DifficultySelector(QWidget):
 """
 Main class use for GUI and the AI managment
 """
-
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         global LEVEL
@@ -212,10 +210,10 @@ class MainWindow(QMainWindow):
         self.show()
         self.setFixedSize(self.size())
 
-    """
-    Init the board and connect signal of each tile to the correct function
-    """
     def init_map(self):
+        """
+        Init the board and connect signal of each tile to the correct function
+        """
         global LEVEL, CURRENT_REVEALED, SCORE
         # Add positions to the map
         for x in range(0, self.b_size):
@@ -229,10 +227,10 @@ class MainWindow(QMainWindow):
                 tile.score.connect(self.update_score)
                 tile.manual.connect(self.update_manual)
 
-    """
-    Reset all the board, choose random positions for mine and give new value to each tiles
-    """
     def reset_map(self):
+        """
+        Reset all the board, choose random positions for mine and give new value to each tiles
+        """
         global SCORE, CURRENT_REVEALED
         self.manual_play = False
         # Clear all mine positions
@@ -278,20 +276,27 @@ class MainWindow(QMainWindow):
                 break
         self.update_score()
 
-    """
-    Return all the tiles around a give tile at position (x,y)
-    """
     def get_surrounding(self, x, y):
+        """
+        Return all the tiles around a give tile at position (x,y)
+
+        Parameters
+        ----------
+        x : int
+            x position of the tile
+        y : int
+            y position of the tile
+        """
         positions = []
         for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
             for yi in range(max(0, y - 1), min(y + 2, self.b_size)):
                 positions.append(self.grid.itemAtPosition(yi, xi).widget())
         return positions
 
-    """
-    Allow us to get the x,y positions of all the tiles around the set of revealed tiles
-    """
     def get_perimeter(self):
+        """
+        Return the list of the x,y positions of all the tiles around the set of revealed tiles
+        """
         CURRENT_REVEALED = self.get_pos_of_revealed()
         perimeter = set()
         for pos in CURRENT_REVEALED:
@@ -302,6 +307,9 @@ class MainWindow(QMainWindow):
         return list(perimeter)
 
     def get_perim_as_tile(self):
+        """
+        Return the list the tiles in the perimeter of the set of revealed tiles
+        """
         CURRENT_REVEALED = self.get_pos_of_revealed()
         perimeter = set()
         for pos in CURRENT_REVEALED:
@@ -311,10 +319,15 @@ class MainWindow(QMainWindow):
                     perimeter.add(elem)
         return list(perimeter)
 
-    """
-    Get the perimeter og the reveal mine with 1 if it's a mine 0 otherwise
-    """
     def get_bombe_peri(self, peri):
+        """
+        Return the perimeter og the reveal mine with 1 if it's a mine 0 otherwise
+
+        Parameters
+        ----------
+        peri : list
+            peri is a list of (x,y) position of tiles
+        """
         peri_bomb = []
         for pos in peri:
             tile = self.grid.itemAtPosition(pos[0], pos[1]).widget()
@@ -324,10 +337,10 @@ class MainWindow(QMainWindow):
                 peri_bomb.append(0)
         return peri_bomb
 
-    """
-    Return the matrix of all the tile's value on the board
-    """
     def get_tiles_value(self):
+        """
+        Return the matrix of all the tile's value on the board
+        """
         value_mat = np.zeros((self.b_size, self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -335,10 +348,10 @@ class MainWindow(QMainWindow):
                 value_mat[x, y] = tile.get_value()
         return value_mat
 
-    """
-    Return the matrix of the tile's value known on the board
-    """
     def get_tiles_revealed_value(self):
+        """
+        Return the matrix of the tile's value known on the board
+        """
         value_mat = np.zeros((self.b_size, self.b_size))
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -352,10 +365,10 @@ class MainWindow(QMainWindow):
                     value_mat[x,y]= -1
         return value_mat
 
-    """
-    Return a list of all the tile's positions
-    """
     def get_pos_of_revealed(self):
+        """
+        Return a list of all the tile's positions
+        """
         lst_revealed = []
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -364,10 +377,10 @@ class MainWindow(QMainWindow):
                     lst_revealed.append((x, y))
         return lst_revealed
 
-    """
-    Return the matrix of all the tile's positions
-    """
     def get_revealed_tiles(self):
+        """
+        Return the matrix of all the tile's positions
+        """
         lst_revealed = []
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
@@ -376,24 +389,10 @@ class MainWindow(QMainWindow):
                     lst_revealed.append(tile)
         return lst_revealed
 
-    """
-    Return the matrix with the positions of mine, 1 if it's a mine, 0 otherwise
-    """
-    def get_all_mine(self):
-        mines = np.zeros((self.b_size, self.b_size))
-        for x in range(0, self.b_size):
-            for y in range(0, self.b_size):
-                tile = self.grid.itemAtPosition(y, x).widget()
-                if(tile.is_mine):
-                    mines[x, y] = 1
-                else:
-                    mines[x, y] = 0
-        return mines
-
-    """
-    Return the matrix with the position of mine in the perieter of revealed tiles
-    """
     def get_mine_peri(self):
+        """
+        Return the matrix with the position of mine in the perieter of revealed tiles
+        """
         mines = np.zeros((self.b_size, self.b_size))
         peri = self.get_perimeter()
         for pos in peri:
@@ -405,56 +404,65 @@ class MainWindow(QMainWindow):
                 mines[x, y] = 0
         return mines
 
-    """
-    Reset all the global value and the board
-    """
     def reset(self):
+        """
+        Reset all the global value and the board
+        """
         global SCORE
         SCORE = 0
         self.score.setText(str(SCORE))
         self.reset_map()
         self.show()
 
-    """
-    Reveal all the tiles on the board
-    """
     def reveal_map(self):
+        """
+        Reveal all the tiles on the board
+        """
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 tile.reveal()
 
-    """
-    Reveal all the tile which are not mine around a position (x,y)
-    """
     def expand_reveal(self, x, y):
+        """
+        Reveal all the tile which are not mine around a position (x,y)
+
+        Parameters
+        ----------
+        x : int
+            x position of the tile
+        y : int
+            y position of the tile
+        """
         for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
             for yi in range(max(0, y - 1), min(y + 2, self.b_size)):
                 tile = self.grid.itemAtPosition(yi, xi).widget()
                 if not tile.is_mine:
                     tile.click()
-    """
-    Start the game and update the current status
-    """
+
     def trigger_start(self, *args):
+        """
+        Start the game and update the current status
+        """
         if self.status != STATUS_PLAYING:
             self.update_status(STATUS_PLAYING)
-    """
-    Update the current status of the player
-    """
+
     def update_status(self, status):
+        """
+        Update the current status of the player
+        """
         self.status = status
 
-    """
-    Return the current status
-    """
     def get_status(self):
+        """
+        Return the current status
+        """
         return self.status
 
-    """
-    Update the score
-    """
     def update_score(self):
+        """
+        Update the score
+        """
         global SCORE
         revealed = self.get_revealed_tiles()
         SCORE = len(revealed)
@@ -463,19 +471,19 @@ class MainWindow(QMainWindow):
             self.winMsg.exec_()
             self.reset_map()
 
-    """
-    Update the manual play boolean
-    """
     def update_manual(self):
+        """
+        Update the manual play boolean
+        """
         self.manual_play = True
         self.score_text.setText("Score : ")
         self.score.setText("0")
         self.winrate.setText("0%")
 
-    """
-    Code execute when the game emit the 'ohno' signal which and the game and restart a new one
-    """
     def game_over(self):
+        """
+        Code execute when a tile emit the 'ohno' signal which end the game and restart a new one
+        """
         global SCORE
         if self.manual_play:
             print("SCORE : ", SCORE)
@@ -484,10 +492,10 @@ class MainWindow(QMainWindow):
         self.update_status(STATUS_FAILED)
         self.reset()
 
-    """
-    Check if a game is win or not
-    """
     def win(self):
+        """
+        Check if a game is win or not
+        """
         cond = False
         if self.get_status() == STATUS_FAILED:
             return True
@@ -499,19 +507,20 @@ class MainWindow(QMainWindow):
             return True
         return cond
 
-    """
-    Reveal all the mine on theb board
-    """
     def reveal_mines(self):
+        """
+        Reveal all the mine on theb board
+        """
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
                 tile = self.grid.itemAtPosition(y, x).widget()
                 if tile.is_mine:
                     tile.reveal()
-    """
-    Get the number of game to play
-    """
+
     def get_number_of_play(self):
+        """
+        Get the number of game to play
+        """
         text = self.cb.currentText()
         if "50" in text:
             return 50
@@ -522,10 +531,10 @@ class MainWindow(QMainWindow):
         elif "1000" in text:
             return 1000
 
-    """
-    # WARNING: Dialog window
-    """
     def warning_before_learn(self):
+        """
+        Warn the user before lunching a learning process
+        """
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
         msg.setWindowTitle("Warning !")
@@ -535,10 +544,17 @@ class MainWindow(QMainWindow):
         retval = msg.exec_()
         return retval
 
-    """
-    Update the progress bar while doing training/playing
-    """
     def update_pbar(self, value, reset=False):
+        """
+        Update the progress bar while doing training/playing
+
+        Parameters
+        ----------
+        value : int
+            value to add to the progress bar
+        reset : bool
+            if True reset the progress bar
+        """
         if(not reset):
             self.pbar.show()
             self.pbar.setValue(int(value))
@@ -549,17 +565,17 @@ class MainWindow(QMainWindow):
 # ===============================================================================
 # REINFORCEMENT LEARNING
 # ===============================================================================
-    """
-    Save the trained RL agent
-    """
     def rl_save(self):
+        """
+        Save the trained RL agent
+        """
         with open('model/q_agent_config.pickle', 'wb') as config_agent:
             pickle.dump(self.agent, config_agent)
 
-    """
-    Create a new RL agent and train it
-    """
     def rl_learn(self):
+        """
+        Create a new RL agent and train it
+        """
         res = self.warning_before_learn()
         if(res == 1024):
             alpha = 0.1; epsilon_max = 0.9; epsilon_min = 0.1; epsilon_decay = 0.99
@@ -567,20 +583,27 @@ class MainWindow(QMainWindow):
             self.run_episode(True, 1000000)
             self.rl_save()
 
-    """
-    Play using the trained RL agent : load a trained agent if no new agent has been created
-    """
     def rl_play(self):
+        """
+        Play using the trained RL agent : load a trained agent if no new agent has been created
+        """
         if self.agent == None:
             with open('model/q_agent_config_1M_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
         self.run_episode(False, self.get_number_of_play())
 
-    """
-    Play the game with a RL agent
-    """
     def run_episode(self, training, nb_game):
+        """
+        Play the game with a RL agent
+
+        Parameters
+        ----------
+        training : bool
+            if True train the agent, else test the agent
+        nb_game : int
+            number of game the agent has to learn or play
+        """
         wins = 0; avg_score = 0
         if training:
             description = 'Training progress'
@@ -639,24 +662,33 @@ class MainWindow(QMainWindow):
 # ===============================================================================
 # CONVOLUTIONAL NEURAL NETWORK
 # ===============================================================================
-    """
-    Save the model of CNN
-    """
     def save_model(self, model):
+        """
+        Save the model of CNN
+
+        Parameters
+        ----------
+        model : tensorflow
+            the tensorflow model with the value learned
+        """
         model.save('model/model_cnn')
 
-    """
-    Load the model of CNN
-    """
     def load_model(self):
+        """
+        Load the model of CNN
+        """
         model = keras.models.load_model('model/model_cnn')
         return model
 
-    """
-    Define the architecture of the CNN
-    """
-    def set_model(self, n_inputs):
-        matrixSize = n_inputs
+    def set_model(self, matrixSize):
+        """
+        Define the architecture of the CNN
+
+        Parameters
+        ----------
+        matrixSize : int
+            size of the input matrix, i.e. the size of the game board
+        """
         filter_size = 2
         pool_size = 1
         model = keras.models.Sequential([
@@ -676,10 +708,15 @@ class MainWindow(QMainWindow):
         model.summary()
         return model
 
-    """
-    Generate different sets of boards
-    """
     def create_game(self, datasetSize):
+        """
+        Generate different sets of boards
+
+        Parameters
+        ----------
+        datasetSize : int
+            the number of game boards we want to generate
+        """
         Xfin = []; yfin = []
         nb_board_game = 0
         pbar = tqdm(total = datasetSize,  desc = "Creating winning games")
@@ -705,13 +742,13 @@ class MainWindow(QMainWindow):
         pbar.close()
         return Xfin, yfin
 
-    """
-    Steps to do in order to train the model with all the different game
-    """
     def button_AI_learn_pressed(self):
+        """
+        Steps to do in order to train the model with all the different game
+        """
         episodes = 10; datasetSize = 5000000
         res = self.warning_before_learn()
-        if(res == 1024): # +/- 7h of training (3000000)
+        if(res == 1024): # +/- 7h of training for 8x8
             try:
                 shutil.rmtree('model/model_cnn')
             except:
@@ -729,10 +766,10 @@ class MainWindow(QMainWindow):
             print("Test loss:", score[0])
             print("Test accuracy:", score[1])
 
-    """
-    Code execute to test the prediction made by the model
-    """
     def button_AI_play_pressed(self):
+        """
+        Code execute to test the prediction made by the model
+        """
         avg_score = 0; wins = 0
         model = self.load_model()
         nb_game = self.get_number_of_play()
@@ -760,7 +797,6 @@ class MainWindow(QMainWindow):
                 self.AI_turn(x, y)
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
-                #self.button_AI_play.setStyleSheet('QPushButton {color: green;}')
             avg_score += score
             self.reset()
             supersmart.reset()
@@ -769,10 +805,17 @@ class MainWindow(QMainWindow):
             self.score.setText(str(round(avg_score/nb_game, 2)))
         self.update_pbar(0, True)
 
-    """
-    Make the different action of a normal turn in game
-    """
     def AI_turn(self, x, y):
+        """
+        Make the different action of a normal turn in game
+
+        Parameters
+        ----------
+        x : int
+            x position of the next click of the AI
+        y : int
+            y position of the next click of the AI
+        """
         tile = self.grid.itemAtPosition(y, x).widget()
         if(not tile.is_revealed):
             tile.click()
@@ -785,6 +828,9 @@ class MainWindow(QMainWindow):
 # ALGORITHMIC SOLVER
 # ===============================================================================
     def button_solve_pressed(self):
+        """
+        Run the logical algorithmic solution to resole the game
+        """
         wins = 0; previous = 0
         nb_game = self.get_number_of_play()
         max_score = LEVEL[0]*LEVEL[0] - LEVEL[1]
