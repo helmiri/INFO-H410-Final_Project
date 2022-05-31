@@ -519,13 +519,13 @@ class MainWindow(QMainWindow):
         Get the number of game to play
         """
         text = self.cb.currentText()
-        if "50" in text:
+        if "50 games" in text:
             return 50
-        elif "100" in text:
+        elif "100 games" in text:
             return 100
-        elif "500" in text:
+        elif "500 games" in text:
             return 500
-        elif "1000" in text:
+        elif "1000 games" in text:
             return 1000
 
     def warning_before_learn(self):
