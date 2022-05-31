@@ -98,7 +98,8 @@ class DifficultySelector(QWidget):
         self.setLayout(vb)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
-        self.setFixedWidth(400)
+        screen_size = QApplication.primaryScreen().availableSize()
+        self.setFixedWidth(screen_size.width()//8)
         self.show()
         self.setFixedSize(self.size())
 
@@ -610,7 +611,7 @@ class MainWindow(QMainWindow):
             description = 'Testing progress'
         for episode in tqdm(range(nb_game), desc = description):
             self.update_pbar(episode/nb_game*100, False)
-            unproductive_moves = 0; score = 0
+            unproductive_moves = 0; score = 0; revealed = []
             while not self.win():
                 QApplication.processEvents()
                 if unproductive_moves > 200: #force game over after more than 200 unproductive moves
@@ -769,7 +770,11 @@ class MainWindow(QMainWindow):
         Steps to do in order to train the model with all the different game
         """
         global SEED
-        episodes = 10; datasetSize = 500000#5000000
+        episodes = 10;
+        if(LEVEL[0]==8):
+            datasetSize = 5000000
+        elif(LEVEL[0]==16):
+            datasetSize = 1000000
         res = self.warning_before_learn()
         if(res == 1024): # +/- 7h of training for 8x8
             try:
