@@ -4,10 +4,10 @@ from typing import Iterable
 
 from tile import Tile
 
-"""
-Binary Tree node
-"""
 class TileTree:
+    """
+    Binary Tree node
+    """
     def __init__(self, value=None, tile=None, parent=None, neighbors=[]) -> None:
         self.value = value
         self.neighbors = neighbors
@@ -57,10 +57,10 @@ class TileTree:
             return True
         return False
 
-    """
-    Remove unneeded branches. This happens when a mine placement is invalid. The corresponding branch will be removed
-    """
     def prune(self):
+        """
+        Remove unneeded branches. This happens when a mine placement is invalid. The corresponding branch will be removed
+        """
         if self.left is None and self.right is None:
             self.parent.remove_child(self)
 
@@ -89,10 +89,10 @@ class TileTree:
     def __ne__(self, other):
         return not(self == other)
 
-"""
-If number of hidden tiles in the neighborhood equals the value of the tile, flag all tiles surrounding it as bombs.
-"""
 def rule_1(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]]):
+    """
+    If number of hidden tiles in the neighborhood equals the value of the tile, flag all tiles surrounding it as bombs.
+    """
     for i, neighborhood in enumerate(neighborhoods):
         length = len(neighborhood)
         flags = 0
@@ -107,10 +107,10 @@ def rule_1(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile
                     return tile
     return None
 
-"""
-If the number of flagged tiles in the neighborhood equals the value of the tile, all hidden tiles in the neighborhood are safe
-"""
 def rule_2(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile]]):
+    """
+    If the number of flagged tiles in the neighborhood equals the value of the tile, all hidden tiles in the neighborhood are safe
+    """
     for i, neighborhood in enumerate(neighborhoods):
         flags = 0
         for tile in neighborhood:
@@ -122,10 +122,10 @@ def rule_2(revealed_values: Iterable[int], neighborhoods: Iterable[Iterable[Tile
                     return tile
     return None
 
-"""
-Revealed tiles are wrapped with this class. Allows tracking of how many remaining mines must be placed in its neighborhood
-"""
 def rule3(perimeter, revealed):
+    """
+    Revealed tiles are wrapped with this class. Allows tracking of how many remaining mines must be placed in its neighborhood
+    """
     hidden_processed = set()
     root = TileTree()
     parent_queue = {root}
@@ -181,16 +181,14 @@ def rule3(perimeter, revealed):
     mines = [k for k, v in nodes.items() if v == 1]
     return free, mines, certainty
 
-
-"""
-For each tile, count occurrences where it is a mine
-"""
 def merge_branches(tree):
+    """
+    For each tile, count occurrences where it is a mine
+    """
     nodes = dict()
     occurrences = dict()
     queue = Queue()
     queue.put(tree)
-
     while not queue.empty():
         node = queue.get()
         for child in [node.get_left(), node.get_right()]:

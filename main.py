@@ -68,15 +68,13 @@ STATUS_SUCCESS = 3
 # ===============================================================================
 # GUI
 # ===============================================================================
-
-"""
-    Difficulty selection prompt
-"""
 class DifficultySelector(QWidget):
+    """
+    Difficulty selection prompt
+    """
     def __init__(self) -> None:
         global LEVEL
         super().__init__()
-
         self.setWindowTitle("Minesweeper AI")
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowIcon(QIcon("./images/bomb.png"))
@@ -114,10 +112,10 @@ class DifficultySelector(QWidget):
         random.seed(seed)
         self.close()
 
-"""
-Main class use for GUI and the AI managment
-"""
 class MainWindow(QMainWindow):
+    """
+    Main class use for GUI and the AI managment
+    """
     def __init__(self, *args, **kwargs):
         global LEVEL
         super(MainWindow, self).__init__(*args, **kwargs)
@@ -206,7 +204,6 @@ class MainWindow(QMainWindow):
         self.update_status(STATUS_READY)
 
         supersmart.setboardsize(self.b_size)
-
         self.show()
         self.setFixedSize(self.size())
 
