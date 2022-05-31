@@ -178,10 +178,12 @@ class MainWindow(QMainWindow):
         hb.addWidget(self.winrate)
         hb0.addWidget(self.cb)
         hb0.addWidget(self.button_solve)
-        hb1.addWidget(self.button_AI_learn)
-        hb1.addWidget(self.button_AI_play)
-        hb2.addWidget(self.button_RL_learn)
-        hb2.addWidget(self.button_RL_play)
+        if(LEVEL[0]!=24):
+            hb1.addWidget(self.button_AI_learn)
+            hb1.addWidget(self.button_AI_play)
+            if(LEVEL[0]!=16):
+                hb2.addWidget(self.button_RL_learn)
+                hb2.addWidget(self.button_RL_play)
         vb.addLayout(hb0)
         vb.addLayout(hb1)
         vb.addLayout(hb2)
@@ -519,9 +521,9 @@ class MainWindow(QMainWindow):
         Get the number of game to play
         """
         text = self.cb.currentText()
-        if "50" in text:
+        if "50 games" in text:
             return 50
-        elif "100" in text:
+        elif "100 games" in text:
             return 100
         elif "500" in text:
             return 500
@@ -536,7 +538,7 @@ class MainWindow(QMainWindow):
         msg.setIcon(QMessageBox.Warning)
         msg.setWindowTitle("Warning !")
         msg.setText("Warning !")
-        msg.setInformativeText("Attention, you will delete the previous saved model and create a new one, do you want to continue? ")
+        msg.setInformativeText("Attention, you will delete the previous saved model and create a new one, do you want to continue ?")
         msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         retval = msg.exec_()
         return retval
@@ -668,13 +670,19 @@ class MainWindow(QMainWindow):
         model : tensorflow
             the tensorflow model with the value learned
         """
-        model.save('model/model_cnn')
+        if(LEVEL[0]==8):
+            model.save('model/model_cnn8')
+        elif(LEVEL[0]==16):
+            model.save('model/model_cnn16')
 
     def load_model(self):
         """
         Load the model of CNN
         """
-        model = keras.models.load_model('model/model_cnn')
+        if(LEVEL[0]==8):
+            model = keras.models.load_model('model/model_cnn8')
+        elif(LEVEL[0]==16):
+            model = keras.models.load_model('model/model_cnn16')
         return model
 
     def set_model(self, matrixSize):
@@ -688,19 +696,34 @@ class MainWindow(QMainWindow):
         """
         filter_size = 2
         pool_size = 1
-        model = keras.models.Sequential([
-          keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
-          keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Conv2D(40, filter_size, activation="relu"),
-          keras.layers.Conv2D(128, filter_size, activation="relu"),
-          keras.layers.Conv2D(40, filter_size, activation="relu"),
-          keras.layers.MaxPooling2D(pool_size=pool_size),
-          keras.layers.Flatten(),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
-          keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
-          keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
-          keras.layers.Reshape((matrixSize, matrixSize))
-        ])
+        if(LEVEL[0]==8):
+            model = keras.models.Sequential([
+              keras.layers.Conv2D(96, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
+              keras.layers.MaxPooling2D(pool_size=pool_size),
+              keras.layers.Conv2D(40, filter_size, activation="relu"),
+              keras.layers.Conv2D(128, filter_size, activation="relu"),
+              keras.layers.Conv2D(40, filter_size, activation="relu"),
+              keras.layers.MaxPooling2D(pool_size=pool_size),
+              keras.layers.Flatten(),
+              keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
+              keras.layers.Dense((matrixSize*matrixSize)*40, activation="sigmoid"),
+              keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
+              keras.layers.Reshape((matrixSize, matrixSize))
+            ])
+        if(LEVEL[0]==16):
+            model = keras.models.Sequential([
+              keras.layers.Conv2D(94, filter_size, input_shape=(matrixSize,matrixSize, 1), activation="relu"),
+              keras.layers.MaxPooling2D(pool_size=pool_size),
+              keras.layers.Conv2D(40, filter_size, activation="relu"),
+              keras.layers.Conv2D(128, filter_size, activation="relu"),
+              keras.layers.Conv2D(40, filter_size, activation="relu"),
+              keras.layers.MaxPooling2D(pool_size=pool_size),
+              keras.layers.Flatten(),
+              keras.layers.Dense((matrixSize*matrixSize)*4, activation="sigmoid"),
+              keras.layers.Dense((matrixSize*matrixSize)*2, activation="sigmoid"),
+              keras.layers.Dense((matrixSize*matrixSize), activation="sigmoid"),
+              keras.layers.Reshape((matrixSize, matrixSize))
+            ])
         model.compile(optimizer="adam",loss="mean_squared_error", metrics=["accuracy"])
         model.summary()
         return model
@@ -714,22 +737,23 @@ class MainWindow(QMainWindow):
         datasetSize : int
             the number of game boards we want to generate
         """
-        Xfin = []; yfin = []
-        nb_board_game = 0
+        Xfin = []; yfin = []; nb_board_game = 0
         pbar = tqdm(total = datasetSize,  desc = "Creating winning games")
         while nb_board_game < datasetSize:
-            nb_temp_game = 0
-            cnt = 0
+            self.update_pbar(nb_board_game/datasetSize*100, False)
+            nb_temp_game = 0; cnt = 0; revealed = []
             while not self.win():
+                QApplication.processEvents()
                 if(cnt%20==0):
                     Xfin.append(self.get_tiles_revealed_value())
                     yfin.append(self.get_mine_peri())
                     nb_temp_game +=1
                 x = random.randint(0, LEVEL[0]-1)
                 y = random.randint(0, LEVEL[0]-1)
-                while(self.grid.itemAtPosition(y, x).widget().is_mine):
+                while((x,y) in revealed or self.grid.itemAtPosition(y, x).widget().is_mine):
                     x = random.randint(0, LEVEL[0]-1)
                     y = random.randint(0, LEVEL[0]-1)
+                revealed.append((x,y))
                 self.AI_turn(x, y)
                 cnt+=1
             nb_board_game+= nb_temp_game
@@ -737,23 +761,28 @@ class MainWindow(QMainWindow):
             self.reset()
             pbar.update(nb_temp_game)
         pbar.close()
+        self.update_pbar(0, True)
         return Xfin, yfin
 
     def button_AI_learn_pressed(self):
         """
         Steps to do in order to train the model with all the different game
         """
-        episodes = 10; datasetSize = 5000000
+        global SEED
+        episodes = 10; datasetSize = 500000#5000000
         res = self.warning_before_learn()
         if(res == 1024): # +/- 7h of training for 8x8
             try:
-                shutil.rmtree('model/model_cnn')
+                if(LEVEL[0]==8):
+                    shutil.rmtree('model/model_cnn8')
+                elif(LEVEL[0]==16):
+                    shutil.rmtree('model/model_cnn16')
             except:
                 pass
             Xfin, yfin = self.create_game(datasetSize)
             n_inputs, n_outputs = len(Xfin[0]), len(yfin[0])
             model = self.set_model(n_inputs)
-            X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float64"), np.array(yfin, dtype="float64"), test_size=0.1, random_state=seed)
+            X_train, X_test, Y_train, Y_test = train_test_split(np.array(Xfin, dtype="float64"), np.array(yfin, dtype="float64"), test_size=0.1, random_state=SEED)
             X_train = X_train.reshape((X_train.shape[0], LEVEL[0], LEVEL[0], 1))
             X_test = X_test.reshape((X_test.shape[0], LEVEL[0], LEVEL[0], 1))
             history = model.fit(X_train, Y_train, batch_size=200, shuffle=True, epochs=episodes, validation_split=0.1, validation_data=(X_test, Y_test))
@@ -900,7 +929,9 @@ class MainWindow(QMainWindow):
             previous += SCORE
         self.update_pbar(0, True)
 
-
+# ===============================================================================
+# INIT WINDOW AND STYLE
+# ===============================================================================
 if __name__ == '__main__':
     app = QApplication([])
     app.setStyle("Fusion")
@@ -915,7 +946,7 @@ if __name__ == '__main__':
     palette.setColor(QPalette.Text, QColor(255, 255, 255))
     palette.setColor(QPalette.Button, QColor(53, 53, 53))
     palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-    palette.setColor(QPalette.BrightText, QColor(200, 50, 20)) # Rouge normalement
+    palette.setColor(QPalette.BrightText, QColor(200, 50, 20))
     palette.setColor(QPalette.Link, QColor(42, 130, 218))
     palette.setColor(QPalette.Highlight, QColor(218, 218, 218))
     palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
