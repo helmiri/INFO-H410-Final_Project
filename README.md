@@ -7,7 +7,10 @@ In the context of the **Techniques of artificial intelligence** (INFO-H410) cour
 ## Run
 `pip install poetry` <br>
 `poetry install` <br>
+On Windows :
 `poetry run python main.py`
+On Linux/Unix :
+`poetry run python3 main.py`
 
 ## Report
 [Click here to access the project report.](https://www.overleaf.com/2571728687wmdkdjgyndzs)
