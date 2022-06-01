@@ -209,6 +209,7 @@ class MainWindow(QMainWindow):
         supersmart.setboardsize(self.b_size)
         self.show()
         self.setFixedSize(self.size())
+        self.status_solving = False
 
     def init_map(self):
         """
@@ -490,7 +491,11 @@ class MainWindow(QMainWindow):
         SCORE = 0
         self.reveal_map()
         self.update_status(STATUS_FAILED)
-        self.reset()
+        if not self.status_solving:
+            loop = QEventLoop()
+            QTimer.singleShot(5000, loop.quit)
+            loop.exec_()
+        self.reset_map()
 
     def win(self):
         """
@@ -519,17 +524,18 @@ class MainWindow(QMainWindow):
 
     def get_number_of_play(self):
         """
-        Get the number of game to play
+        Get the number of games to play
         """
-        text = self.cb.currentText()
-        if "50 games" in text:
-            return 50
-        elif "100 games" in text:
-            return 100
-        elif "500 games" in text:
-            return 500
-        elif "1000 games" in text:
-            return 1000
+        index = self.cb.currentIndex()
+        match index:
+            case 0:
+                return 50
+            case 1:
+                return 100
+            case 2:
+                return 500
+            case 3:
+                return 1000
 
     def warning_before_learn(self):
         """
@@ -587,11 +593,13 @@ class MainWindow(QMainWindow):
         """
         Play using the trained RL agent : load a trained agent if no new agent has been created
         """
+        self.status_solving = True
         if self.agent == None:
             with open('model/q_agent_config_1M_run.pickle', 'rb') as config_agent:
                 self.agent = pickle.load(config_agent)
         self.reset_map()
         self.run_episode(False, self.get_number_of_play())
+        self.status_solving = False
 
     def run_episode(self, training, nb_game):
         """
@@ -801,6 +809,7 @@ class MainWindow(QMainWindow):
         """
         Code execute to test the prediction made by the model
         """
+        self.status_solving = True
         avg_score = 0; wins = 0
         model = self.load_model()
         nb_game = self.get_number_of_play()
@@ -835,6 +844,7 @@ class MainWindow(QMainWindow):
             self.score_text.setText("Average score : ")
             self.score.setText(str(round(avg_score/nb_game, 2)))
         self.update_pbar(0, True)
+        self.status_solving = False
 
     def AI_turn(self, x, y):
         """
@@ -860,42 +870,54 @@ class MainWindow(QMainWindow):
 # ===============================================================================
     def button_solve_pressed(self):
         """
-        Run the logical algorithmic solution to resole the game
+        Run the logical algorithmic solution to resolve the game
         """
+        self.status_solving = True
         wins = 0; previous = 0
         nb_game = self.get_number_of_play()
-        max_score = LEVEL[0]*LEVEL[0] - LEVEL[1]
-        scores = list()
-        win_history = list()
         for episode in tqdm(range(nb_game), desc = "Solving games"):
             self.update_pbar(episode/nb_game*100, False)
             tile = None; SCORE = 0
             while not self.win():
-                QApplication.processEvents()
-                revealed = self.get_revealed_tiles()
-                SCORE = len(revealed)
+                # Check for game end
                 if tile is not None and tile.is_mine and tile.is_revealed:
                     self.update_status(STATUS_FAILED)
                     break
+            
+                QApplication.processEvents()
+                revealed = self.get_revealed_tiles()
+                SCORE = len(revealed)
+                
+                # Get the neighborhood of the revealed tiles
                 tmp = list()
                 for item in revealed:
                     tmp.append(self.get_surrounding(item.x, item.y))
-                # Filter unneeded
+
+                # Filter only hidden tiles
                 neighborhoods = [[] for i in range(len(tmp))]
                 for i, neighborhood in enumerate(tmp):
                     for neighbor in neighborhood:
                         if not neighbor.is_revealed:
                             neighborhoods[i].append(neighbor)
+                
+                # Attempt to apply the rules
                 tile = rule_1(revealed, neighborhoods)
                 if tile != None:
                     tile.flag()
                     continue
+                    
                 tile = rule_2(revealed, neighborhoods)
                 if tile != None:
                     tile.click()
                     tile.reveal()
                     continue
+                
+                # Both rules failed. Proceed with exhaustive search.
                 perimeter = self.get_perim_as_tile()
+
+                # Preprocess perimeter
+                # Only perimeter tiles with a non-flagged hidden tile in their neighborhood are considered. 
+                # The other tiles do not provide useful information
                 final_perimeter = set()
                 for tile in perimeter:
                     check = False
@@ -905,34 +927,45 @@ class MainWindow(QMainWindow):
                             break
                     if check:
                         final_perimeter.add(tile)
+
+                # Preprocess neighboring tiles
+                # Only revealed tiles adjacent to hidden tiles in final_perimeter are considered
                 perimeter_neighbors = set()
-                for tile in perimeter: # Preprocess neighboring tiles
+                for tile in final_perimeter: 
                     surroundings = tile.neighbors
                     for n_tile in surroundings:
                         if n_tile.is_revealed:
                             perimeter_neighbors.add(n_tile)
-                free, flags, certainty = rule3(final_perimeter, perimeter_neighbors)
+
+                free, flags, certainty = rule_3(final_perimeter, perimeter_neighbors)
+
                 if certainty == 1:
+                    # We are certain that all tiles returned do not contain a mine. Click all of them to save computation time.
                     for tile in free:
                         tile.click()
                         tile.reveal()
                 else:
+                    # Otherwise pick one at random.
                     tile = random.choice(free)
                     tile.click()
                     tile.reveal()
                     if tile.is_mine:
+                        # Oh no :(
                         self.update_status(STATUS_FAILED)
                         continue
+                # Flag tiles contained in flags
                 for tile in flags:
                     tile.flag()
+            
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.reset_map()
-            self.winrate.setText(str(round(wins/nb_game*100,2))+"%")
+            self.winrate.setText(str(round(wins/(episode + 1)*100,2))+"%")
             self.score_text.setText("Average score : ")
-            self.score.setText(str(round(previous/nb_game, 2)))
+            self.score.setText(str(round(previous/(episode + 1), 2)))
             previous += SCORE
         self.update_pbar(0, True)
+        self.status_solving = False
 
 # ===============================================================================
 # INIT WINDOW AND STYLE
