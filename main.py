@@ -527,14 +527,13 @@ class MainWindow(QMainWindow):
         Get the number of games to play
         """
         index = self.cb.currentIndex()
-        match index:
-            case 0:
+        if(index==0):
                 return 50
-            case 1:
+        elif(index==1):
                 return 100
-            case 2:
+        elif(index==2):
                 return 500
-            case 3:
+        elif(index==3):
                 return 1000
 
     def warning_before_learn(self):
@@ -883,11 +882,11 @@ class MainWindow(QMainWindow):
                 if tile is not None and tile.is_mine and tile.is_revealed:
                     self.update_status(STATUS_FAILED)
                     break
-            
+
                 QApplication.processEvents()
                 revealed = self.get_revealed_tiles()
                 SCORE = len(revealed)
-                
+
                 # Get the neighborhood of the revealed tiles
                 tmp = list()
                 for item in revealed:
@@ -899,24 +898,24 @@ class MainWindow(QMainWindow):
                     for neighbor in neighborhood:
                         if not neighbor.is_revealed:
                             neighborhoods[i].append(neighbor)
-                
+
                 # Attempt to apply the rules
                 tile = rule_1(revealed, neighborhoods)
                 if tile != None:
                     tile.flag()
                     continue
-                    
+
                 tile = rule_2(revealed, neighborhoods)
                 if tile != None:
                     tile.click()
                     tile.reveal()
                     continue
-                
+
                 # Both rules failed. Proceed with exhaustive search.
                 perimeter = self.get_perim_as_tile()
 
                 # Preprocess perimeter
-                # Only perimeter tiles with a non-flagged hidden tile in their neighborhood are considered. 
+                # Only perimeter tiles with a non-flagged hidden tile in their neighborhood are considered.
                 # The other tiles do not provide useful information
                 final_perimeter = set()
                 for tile in perimeter:
@@ -931,7 +930,7 @@ class MainWindow(QMainWindow):
                 # Preprocess neighboring tiles
                 # Only revealed tiles adjacent to hidden tiles in final_perimeter are considered
                 perimeter_neighbors = set()
-                for tile in final_perimeter: 
+                for tile in final_perimeter:
                     surroundings = tile.neighbors
                     for n_tile in surroundings:
                         if n_tile.is_revealed:
@@ -956,7 +955,7 @@ class MainWindow(QMainWindow):
                 # Flag tiles contained in flags
                 for tile in flags:
                     tile.flag()
-            
+
             if self.get_status() == STATUS_SUCCESS:
                 wins += 1
             self.reset_map()
